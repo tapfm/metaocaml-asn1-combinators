@@ -1,3 +1,7 @@
-src/.vscode
-
+.vscode
 _build/
+
+
+*.native
+*byte
+
