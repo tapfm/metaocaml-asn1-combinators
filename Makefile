@@ -12,8 +12,13 @@ clean:
 
 lib:
 	$(OCB) src/asn_oid.cmx
+	$(OCB) src/asn_core.cmx
+	$(OCB) src/asn_prim.cmx
+	$(OCB) src/asn_combinators.cmx
+	$(OCB) src/asn_reader.cmx
 	$(OCB) src/asn.cmx
 	$(OCB) src/asn.cmxa
 
 test-native:
 	$(OCB) tests/oid_test.native
+	$(OCB) tests/read_header_test.native

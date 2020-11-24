@@ -1,9 +1,3 @@
-let () = 
-  let (<|)  = Asn.OID.(<|) in
-  let (<||) = Asn.OID.(<||) in
-  let rsa = Asn.OID.base 1 2 <| 841 <| 113549 <|| [1;2;3] in
-  Format.print_newline(); Asn.OID.pp Format.std_formatter rsa; Format.print_newline()
-(*
 let pp_header (tag, coding, hdr_length) = 
   let open Asn_core in
   let open Asn_reader in
@@ -30,8 +24,6 @@ let () =
   let open Asn_core in
   let open Asn_reader in
   let hdr_bytes = Bytes.make(2)(Char.chr(0)) in 
-  Bytes.set(hdr_bytes)(0)(Char.chr(0x05));
+  Bytes.set_uint16_be(hdr_bytes)(0)(0b01_0_11111___0000_1000);
   let (tag, coding, hdr_length) = Header.parse () hdr_bytes in
   pp_header(tag, coding, hdr_length)
-
-  *)
