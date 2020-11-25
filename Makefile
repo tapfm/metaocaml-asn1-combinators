@@ -16,9 +16,11 @@ lib:
 	$(OCB) src/asn_prim.cmx
 	$(OCB) src/asn_combinators.cmx
 	$(OCB) src/asn_reader.cmx
+	$(OCB) src/asn_writer.cmx
 	$(OCB) src/asn.cmx
 	$(OCB) src/asn.cmxa
 
 test-native:
 	$(OCB) tests/oid_test.native
 	$(OCB) tests/read_header_test.native
+	$(OCB) tests/write_header_test.native

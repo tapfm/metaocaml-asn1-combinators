@@ -22,8 +22,8 @@ let pp_header (tag, coding, hdr_length) =
 
 let () = 
   let open Asn_core in
-  let open Asn_reader in
-  let hdr_bytes = Bytes.make(2)(Char.chr(0)) in 
-  Bytes.set_uint16_be(hdr_bytes)(0)(0b01_0_01111___0000_1000);
-  let (tag, coding, hdr_length) = Header.parse () hdr_bytes in
+  let open Asn_writer in
+  let hdr_bytes = Header.encode(Tag.Context_specific 30)(Constructed)(0) in
+  let (tag, coding, hdr_length) = Asn_reader.Header.parse () hdr_bytes in
   pp_header(tag, coding, hdr_length)
+  

@@ -1,6 +1,7 @@
 open Asn_core
 
-module Prim = Asn_prim
+(* May want this later, currently commented to suppress warnings *)
+(* module Prim = Asn_prim *)
 
 (* name 'inherited' from asn1-combinators --> should change to something more descriptive e.g. Generic_tag *)
 module G = Generic
