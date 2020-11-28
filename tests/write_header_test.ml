@@ -20,10 +20,13 @@ let pp_header (tag, coding, hdr_length) =
   Format.print_int hdr_length;
   Format.print_newline()
 
+
 let () = 
   let open Asn_core in
   let open Asn_writer in
-  let hdr_bytes = Header.encode(Tag.Context_specific 30)(Constructed)(0) in
-  let (tag, coding, hdr_length) = Asn_reader.Header.parse () hdr_bytes in
+  let (n, w) = Header.encode(Tag.Context_specific 30)(Constructed)(0) in
+  let hdr = Bytes.create n in
+  w 0 hdr;
+  let (tag, coding, hdr_length) = Asn_reader.Header.parse () hdr in
   pp_header(tag, coding, hdr_length)
   

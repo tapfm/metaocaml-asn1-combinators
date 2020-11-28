@@ -1,10 +1,18 @@
 open Asn_core
 
+module Prim = Asn_prim
+
 (* Type for whether the encoded value is primitive or constructed *)
 type mode = Constructed | Primitive
 
-(* A simple operator to concatenated two bytes values*)
-let (<+>) = Bytes.cat
+type config = Ber | Der (* | Cer | ... *)
+
+(* A simple operator to combine 2 Writer.t values*)
+let (<+>) : writer -> writer -> writer =
+  fun (len_1, writer_1) (len_2, writer_2) ->
+  let w off bs = 
+    (writer_1 off bs; writer_2 (off + len_1) bs) in
+  (len_1 + len_2, w)
 
 (*Header module encodes the identifier and length octets for an encoded value *)
 module Header = struct 
@@ -25,7 +33,7 @@ module Header = struct
     in
     let identifier = 
       if tag_num < 0x1f then
-        Bytes.make(1)(Char.chr(class_code lor constructed lor tag_num))
+        (1, fun off bs -> Bytes.set_uint8 bs off (class_code lor constructed lor tag_num))
       else
         (* TODO: tag_num must extend into further octects *)
         assert false
@@ -33,7 +41,7 @@ module Header = struct
     let length_bytes = 
       (* Currently doesn't actually support encoding for indefinite length values --> could be solve with a boolean? *)
       if len < 0xF0 then
-        Bytes.make(1)(Char.chr(len))
+        (1, fun off bs -> Bytes.set_uint8 bs off len)
       else
         (* Here the first octet will contain the number of subsequent length octets *)
         (* Then the subsequent octets will _actually_ encode the length *)
@@ -43,3 +51,33 @@ module Header = struct
       identifier <+> length_bytes
 
 end
+
+let e_primitive tag body = 
+  let (len, _) = body in
+  Header.encode tag Primitive len <+> body
+
+
+(* The actual encoding function *)
+let rec encode : type a. config -> tag option -> a -> a asn -> writer
+  = fun conf tag a -> function 
+  | Sequence _
+  | Set _
+  | Choice _ -> (* TODO: constructed types *)
+    assert false
+  | Prim p -> encode_prim tag a p
+
+and encode_prim : type a. tag option -> a -> a prim -> writer = fun tag a prim -> 
+  let e = e_primitive (match tag with | Some x -> x | None -> tag_of_prim prim) in 
+  match prim with 
+  | Bool -> e @@ Prim.Boolean.to_writer a
+  | Int  -> e @@ Prim.Integer.to_writer a
+  (* TODO: Implement remaing primitive types *)
+  | Bits
+  | Octets
+  | Null
+  | OID
+  | CharString -> assert false
+
+let ber_to_writer asn a = encode Ber None a asn
+
+let der_to_writer asn a = encode Der None a asn

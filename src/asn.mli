@@ -60,14 +60,12 @@ module S : sig
 
   val bool     : bool t
 
-  val integer  : int t
+  val integer  : int64 t
 
 end
 
 
 type encoding
-
-(*
 
 val ber : encoding
 
@@ -78,7 +76,9 @@ type 'a codec
 
 val codec : encoding -> 'a t -> 'a codec
 
-val encode : 'a codec -> 'a t -> bytes
+val encode : 'a codec -> 'a -> bytes
+
+(*
 
 type error = [ `Parse of string ]
 

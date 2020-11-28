@@ -2,9 +2,12 @@ open Asn_core
 
 module type Prim = sig
   type t
-  val of_bytes : bytes -> t
+  val of_bytes  : bytes -> t
 
-  val to_bytes : t -> bytes
+  (* Not sure if this is necessary *)
+  val to_bytes  : t -> bytes
+
+  val to_writer : t -> writer
 end
 
 module Boolean : Prim with type t = bool = struct
@@ -23,6 +26,10 @@ module Boolean : Prim with type t = bool = struct
       Bytes.make(1)(Char.chr(0xFF))
     else 
       Bytes.make(1)(Char.chr(0x00))
+
+  let to_writer b = 
+    let encoded = if b then 0xFF else 0x00 in
+    (1, fun off bs -> Bytes.set_uint8 bs off encoded)
 end
 
 module Integer : Prim with type t = int64 = struct
@@ -41,5 +48,8 @@ module Integer : Prim with type t = int64 = struct
     let b = Bytes.create 8 in
     Bytes.set_int64_be b 0 i;
     b
+
+  let to_writer i = 
+    (8, fun off bs -> Bytes.set_int64_be bs off i)
 
 end
