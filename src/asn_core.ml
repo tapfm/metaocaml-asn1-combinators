@@ -34,7 +34,9 @@ and _ prim =
   | OID        : Asn_oid.t  prim
   | CharString : string     prim
 
-(* Not sure how much of this I need ... *)
+type error = [ `Parse of string ]
+
+exception Parse_error of error
 
 module Tag = struct
   
@@ -44,7 +46,7 @@ module Tag = struct
     | Context_specific of int
     | Private          of int
 
-  (*
+  
   let compare t1 t2 = match (t1, t2) with
     | (Universal        a, Universal        b)
     | (Application      a, Application      b)
@@ -66,7 +68,7 @@ module Tag = struct
       -> a = b
     | _
       -> false
-  *)
+
 end
 
 type tag = Tag.t

@@ -78,10 +78,7 @@ val codec : encoding -> 'a t -> 'a codec
 
 val encode : 'a codec -> 'a -> bytes
 
-(*
-
 type error = [ `Parse of string ]
 
 val decode : 'a codec -> bytes -> ('a * bytes, error) result
 
-*)

@@ -14,22 +14,20 @@ type oid = OID.t
 type 'a t = 'a S.t
 
 type encoding = {
-  (*mk_decoder : 'a. 'a t -> bytes -> 'a * bytes;*)
+  mk_decoder : 'a. 'a t -> bytes -> 'a * bytes;
   mk_encoder : 'a. 'a t -> 'a -> Asn_core.writer
 }
 
 let ber = {
-  (*mk_decoder = assert false ;*)
-  mk_encoder = Asn_writer.ber_to_writer ;
+  mk_decoder = (fun asn b -> Asn_reader.compile Asn_reader.Ber asn b);
+  mk_encoder = (fun asn x -> Asn_writer.ber_to_writer asn x) ;
 }
 
 let der = {
-  (*mk_decoder = assert false ;*)
-  mk_encoder = Asn_writer.der_to_writer ;
+  mk_decoder = (fun asn b -> Asn_reader.compile Asn_reader.Der asn b);
+  mk_encoder = (fun asn x -> Asn_writer.der_to_writer asn x);
 }
-(*Temporarily removing the decoder in order to test this *)
 
-(*
 type 'a codec = Codec of (bytes -> ('a * bytes)) * ('a -> Core.writer)
 
 let codec {mk_encoder; mk_decoder} asn = 
@@ -40,15 +38,8 @@ let encode (Codec(_, enc)) a =
   let bs = Bytes.create n in
   w 0 bs;
   bs
-*)
 
-type 'a codec = Codec of ('a -> Core.writer)
+type error = Core.error
 
-let codec {mk_encoder(*; mk_decoder*)} asn = 
-  Codec (mk_encoder asn)
-
-let encode (Codec(enc)) a = 
-  let (n, w) = (enc a) in
-  let bs = Bytes.create n in
-  w 0 bs;
-  bs
+let decode (Codec(dec, _)) b = 
+  try Ok (dec b) with Core.Parse_error err -> Error err

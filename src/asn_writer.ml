@@ -78,6 +78,8 @@ and encode_prim : type a. tag option -> a -> a prim -> writer = fun tag a prim -
   | OID
   | CharString -> assert false
 
+let to_writer cfg asn a = encode cfg None a asn
+
 let ber_to_writer asn a = encode Ber None a asn
 
 let der_to_writer asn a = encode Der None a asn
