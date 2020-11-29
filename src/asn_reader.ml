@@ -87,8 +87,8 @@ let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun cfg tag -> functi
   | Bool       -> primitive tag Prim.Boolean.of_bytes
   | Int        -> primitive tag Prim.Integer.of_bytes
   | Bits
-  | Octets
-  | Null
+  | Octets     -> assert false
+  | Null       -> primitive tag Prim.Null.of_bytes
   | OID
   | CharString -> assert false
 

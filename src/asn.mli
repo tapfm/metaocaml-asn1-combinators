@@ -62,6 +62,8 @@ module S : sig
 
   val integer  : int64 t
 
+  val null     : unit t
+
 end
 
 

@@ -9,8 +9,9 @@ module Int = struct
 end
 
 
-let bool = Prim Bool
+let bool    = Prim Bool
 and integer = Prim Int
+and null    = Prim Null
 
 let single a = Last a
 and ( @ ) a b = Pair (a, b)

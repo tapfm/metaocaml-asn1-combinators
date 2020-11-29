@@ -13,9 +13,9 @@ end
 module Boolean : Prim with type t = bool = struct
   type t = bool
 
-  let of_bytes b = 
-    if Bytes.length b = 1 then
-      let r = Bytes.get_uint8 b 0 in
+  let of_bytes bs = 
+    if Bytes.length bs = 1 then
+      let r = Bytes.get_uint8 bs 0 in
       r <> 0
     else 
       failwith "Boolean must have a length of 1 octet"
@@ -51,4 +51,20 @@ module Integer : Prim with type t = int64 = struct
   let to_writer i = 
     (8, fun off bs -> Bytes.set_int64_be bs off i)
 
+end
+
+module Null : Prim with type t = unit = struct
+  type t = unit
+
+  let of_bytes b =
+    if Bytes.length b = 0 then
+      ()
+    else
+      failwith "Null must be encoded with a length of 0"
+
+  let to_writer () =
+    (0, fun (off : int) (bs : bytes) -> ())
+
+  let to_bytes () =
+    Bytes.empty
 end

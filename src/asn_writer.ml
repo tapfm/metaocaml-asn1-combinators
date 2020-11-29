@@ -69,12 +69,12 @@ let rec encode : type a. config -> tag option -> a -> a asn -> writer
 and encode_prim : type a. tag option -> a -> a prim -> writer = fun tag a prim -> 
   let e = e_primitive (match tag with | Some x -> x | None -> tag_of_prim prim) in 
   match prim with 
-  | Bool -> e @@ Prim.Boolean.to_writer a
-  | Int  -> e @@ Prim.Integer.to_writer a
+  | Bool       -> e @@ Prim.Boolean.to_writer a
+  | Int        -> e @@ Prim.Integer.to_writer a
   (* TODO: Implement remaing primitive types *)
   | Bits
-  | Octets
-  | Null
+  | Octets     -> assert false
+  | Null       -> e @@ Prim.Null.to_writer a
   | OID
   | CharString -> assert false
 

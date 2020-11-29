@@ -36,6 +36,9 @@ and _ prim =
 
 type error = [ `Parse of string ]
 
+
+let pp_error ppf (`Parse err) = Format.fprintf ppf "Parse error: %s" err
+
 exception Parse_error of error
 
 module Tag = struct
