@@ -20,12 +20,12 @@ type encoding = {
 
 let ber = {
   mk_decoder = (fun asn b -> Asn_reader.compile Asn_reader.Ber asn b);
-  mk_encoder = (fun asn x -> Asn_writer.ber_to_writer asn x) ;
+  mk_encoder = (fun asn x -> Asn_writer.to_writer Asn_writer.Ber asn x) ;
 }
 
 let der = {
   mk_decoder = (fun asn b -> Asn_reader.compile Asn_reader.Der asn b);
-  mk_encoder = (fun asn x -> Asn_writer.der_to_writer asn x);
+  mk_encoder = (fun asn x -> Asn_writer.to_writer Asn_writer.Der asn x);
 }
 
 type 'a codec = Codec of (bytes -> ('a * bytes)) * ('a -> Core.writer)

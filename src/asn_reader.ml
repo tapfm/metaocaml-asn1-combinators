@@ -24,11 +24,27 @@ type coding =
 (* Still need to work out a good procedure for indefinite length encoding -- currently unimplemented*)
 module Header = struct
 
+  let long_len cfg bs off = function
+    | 0x7F -> failwith "Not allowed - See ITU X.690 8.1.3.5 c"
+    | n    -> 
+      let rec find_start bs i = function 
+      | 0 -> 0L
+      | n -> match Bytes.get_uint8 bs i with
+        | 0 when cfg = Der -> failwith "Redundant length"
+        | 0 -> find_start bs (i + 1) (n - 1)
+        | _ when n > 8 -> failwith "Length overflow - size of length > 64 bits"
+        | x -> find_len (Int64.of_int x) bs (i + 1) (n - 1)
+      and find_len acc bs i = function
+      | 0 -> acc
+      | n -> let acc = Int64.add (Int64.shift_left acc 8) (Int64.of_int (Bytes.get_uint8 bs i)) in 
+             find_len acc bs (i + 1) (n - 1) in 
+      Int64.to_int(find_start bs off n)
+
   let parse cfg bs = 
     let b0 = Bytes.get_uint8 bs 0 in
     let (tag_num, id_len) = match b0 land 0x1F with
       | 0x1F -> (* TODO: High tag number extends into further octets *)
-        assert false (* currently unimplemented *)
+        failwith "Unimplemented"
       | x    -> (x, 1) in
     let tag = match b0 land 0xC0 with
       | 0x00 -> Tag.Universal tag_num
@@ -40,8 +56,10 @@ module Header = struct
     let (len, hdr_len) = match l0 with 
       | 0x80 -> (0, id_len + 1)
       | x    -> match x land 0x80 with
-        | 0x00 -> (l0, id_len + 1)
-        | _    -> assert false (* TODO: longer form if the length of the contents > 127 *) in
+        | 0x00 -> (x, id_len + 1)
+        | _    -> let lbody = x land 0x7f in
+                  let n     = long_len cfg bs (id_len + 1) lbody in
+                  (n, id_len + 1 + lbody) in
     let cd = match b0 land 0x20 with
       (* Primitive *)
       | 0x00 -> ( match l0 with 
@@ -66,36 +84,63 @@ module Gen = struct
     let k = off + n in
     Bytes.(sub bs off n, sub bs k (length bs - k))
 
-  let node cfg bs = 
+  let rec children cfg eof acc bs = 
+    if eof bs then
+      (List.rev acc, bs)
+    else
+      let (g, bs') = node cfg bs in
+      children cfg eof (g::acc) bs'
+
+  and node cfg bs = 
     let (tag, coding, off) = Header.parse cfg bs in
     match coding with
     | Primitive n            -> 
         let (hd, tl) = split_off bs off n in
         (G.Prim (tag, hd), tl)
-      (*TODO generate the tags for constructed type*)
-    | Constructed n          -> assert false
-    | Constructed_indefinite -> assert false
+    | Constructed n          -> 
+      let (hd, tl) = split_off bs off n in
+      let (gs, _ ) = children cfg eof1 [] hd in 
+      (G.Cons(tag, gs), tl)
+    | Constructed_indefinite -> match cfg with 
+      | Ber -> 
+        let (gs, tl) = children cfg eof2 [] (Bytes.sub bs off ((Bytes.length bs) - off)) in 
+        (G.Cons (tag, gs), (Bytes.sub bs 2 ((Bytes.length bs) - 2)))
+      | _   -> failwith "Constructed indefinite form not in BER decoding"
   
   let parse cfg bs = try node cfg bs with Invalid_argument _ -> failwith "Unexpected EOF"
 end
 
 let primitive t f = function 
   | G.Prim (t1, bs) when Tag.equal t t1 -> f bs
-  | g                                  -> failwith "Type mismatch parsing primitive"
+  | g                                   -> failwith "Type mismatch parsing primitive"
+
+let string_like (type a) c t (module P : Prim.Prim_s with type t = a) =
+  let rec p = function
+    | G.Prim (t1, bs) when Tag.equal t t1 -> P.of_bytes bs
+    | G.Cons (t1, gs) when Tag.equal t t1 && c = Ber ->
+        P.concat (List.map p gs)
+    | g -> failwith "Type mismatch parsing string_like" 
+  in
+    p
 
 let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun cfg tag -> function
   | Bool       -> primitive tag Prim.Boolean.of_bytes
   | Int        -> primitive tag Prim.Integer.of_bytes
-  | Bits
-  | Octets     -> assert false
+  | Bits       -> failwith "Unimplemented"
+  | Octets     -> (* Octets are either:
+                      | Primitive   -> simple to decode
+                      | Constructed -> recursively made of smaller Octets
+                     So more care is needed to decode it
+                  *)
+                  string_like cfg tag (module Prim.Octets)
   | Null       -> primitive tag Prim.Null.of_bytes
   | OID
-  | CharString -> assert false
+  | CharString -> failwith "Unimplemented"
 
 let rec c_asn : type a. a asn -> config -> G.t -> a = fun asn cfg ->
   let rec go : type a. ?t:tag -> a asn -> G.t -> a = fun ?t -> function
   | Prim p -> c_prim cfg (match t with | Some x -> x | None -> tag_of_prim p) p 
-  | _      -> assert false in
+  | _      -> failwith "Unimplemented" in
 
   go asn
 

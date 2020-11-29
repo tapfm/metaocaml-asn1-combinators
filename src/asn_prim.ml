@@ -4,10 +4,17 @@ module type Prim = sig
   type t
   val of_bytes  : bytes -> t
 
-  (* Not sure if this is necessary *)
-  val to_bytes  : t -> bytes
-
   val to_writer : t -> writer
+
+end
+
+module type Prim_s = sig
+  include Prim
+  
+  (* Not sure if I like the name for this -- but it is consistent with Bytes.concat *)
+  val concat : t list -> t
+  val length : t      -> int
+
 end
 
 module Boolean : Prim with type t = bool = struct
@@ -19,12 +26,6 @@ module Boolean : Prim with type t = bool = struct
       r <> 0
     else 
       failwith "Boolean must have a length of 1 octet"
-
-  let to_bytes boolean = 
-    if boolean then
-      Bytes.make(1)(Char.chr(0xFF))
-    else 
-      Bytes.make(1)(Char.chr(0x00))
 
   let to_writer b = 
     let encoded = if b then 0xFF else 0x00 in
@@ -41,12 +42,7 @@ module Integer : Prim with type t = int64 = struct
     | 4 -> Int64.of_int32(Bytes.get_int32_be b 0)
     | 8 -> Bytes.get_int64_be b 0
     (* TODO: need to deal with arbitrary length integers *)
-    | _ -> assert false
-
-  let to_bytes i = 
-    let b = Bytes.create 8 in
-    Bytes.set_int64_be b 0 i;
-    b
+    | _ -> failwith "Unsupported length of integer"
 
   let to_writer i = 
     (8, fun off bs -> Bytes.set_int64_be bs off i)
@@ -67,4 +63,19 @@ module Null : Prim with type t = unit = struct
 
   let to_bytes () =
     Bytes.empty
+end
+
+module Octets : Prim_s with type t = bytes = struct
+  
+  type t = bytes
+
+  let of_bytes bs = bs
+
+  let to_writer os = 
+    let len = Bytes.length os in
+    (len, fun off bs -> Bytes.blit os 0 bs off len)
+
+  let concat = Bytes.(concat empty)
+
+  let length = Bytes.length
 end

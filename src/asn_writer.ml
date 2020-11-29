@@ -40,13 +40,17 @@ module Header = struct
     in
     let length_bytes = 
       (* Currently doesn't actually support encoding for indefinite length values --> could be solve with a boolean? *)
-      if len < 0xF0 then
+      if len < 0x80 then
         (1, fun off bs -> Bytes.set_uint8 bs off len)
       else
         (* Here the first octet will contain the number of subsequent length octets *)
         (* Then the subsequent octets will _actually_ encode the length *)
-        (* TODO: calculate the required size for the length and populate it *)
-        assert false
+        let rec f acc k = function
+          | 0 -> (acc, k) 
+          | n -> f (n land 0xFF :: acc) (k + 1) (n lsr 8)  in
+        let (lst, num_bytes) = f [] 0 len in
+        (1, fun off bs -> Bytes.set_uint8 bs off (0x80 lor num_bytes)) <+>
+        (num_bytes, fun off bs -> (List.iteri (fun i -> Bytes.set_uint8 bs (off + i)) lst) )
     in
       identifier <+> length_bytes
 
@@ -72,14 +76,10 @@ and encode_prim : type a. tag option -> a -> a prim -> writer = fun tag a prim -
   | Bool       -> e @@ Prim.Boolean.to_writer a
   | Int        -> e @@ Prim.Integer.to_writer a
   (* TODO: Implement remaing primitive types *)
-  | Bits
-  | Octets     -> assert false
+  | Bits       -> failwith "Unimplemented"
+  | Octets     -> e @@ Prim.Octets.to_writer a
   | Null       -> e @@ Prim.Null.to_writer a
   | OID
   | CharString -> assert false
 
 let to_writer cfg asn a = encode cfg None a asn
-
-let ber_to_writer asn a = encode Ber None a asn
-
-let der_to_writer asn a = encode Der None a asn

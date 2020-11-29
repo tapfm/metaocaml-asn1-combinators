@@ -111,6 +111,56 @@ let random_ints =
     QCheck.(int64) 
     ( fun i -> decoder (encoder i) = Ok(i, Bytes.empty) )
 
+
+(* encode_octets and decode_octets are for simpler / shorter test -> more complicated one will be covered in the circular tests*)
+let encode_octets () = 
+  let octet_asn   = Asn.S.octet_string in
+  let octet_codec = Asn.codec Asn.ber octet_asn in 
+  let encoder     = Asn.encode octet_codec in 
+  Alcotest.(check bytes) "\"\" =encodes=to=> 0x0401_01" (to_bytes [0x04; 0x00]) (encoder Bytes.empty);
+  Alcotest.(check bytes) "0x01 =encodes=to=> 0x0401_01" (to_bytes [0x04; 0x01; 0x01]) (encoder (to_bytes [0x01]));
+  let bytes_127 = Bytes.make 127 'a' in 
+  Alcotest.(check bytes) "bytes_127 =encodes=to=> 0x047F ^ bytes127"
+    (Bytes.cat (to_bytes [0x04; 0x7F]) bytes_127)
+    (encoder bytes_127);
+  let bytes_128 = Bytes.make 128 'b' in 
+  Alcotest.(check bytes) "bytes_128 =encodes=to=> 0x048180 ^ bytes128"
+    (Bytes.cat (to_bytes [0x04; 0x81; 0x80]) bytes_128)
+    (encoder bytes_128)
+
+let decode_octets () = 
+  let octet_asn   = Asn.S.octet_string in
+  let octet_codec = Asn.codec Asn.ber octet_asn in 
+  let decoder     = Asn.decode octet_codec in 
+  Alcotest.(check (result (pair bytes bytes) parse_err)) 
+    "0x0401_01 =decodes=to=> \"\"" 
+    (Ok(Bytes.empty, Bytes.empty))
+    (decoder (to_bytes [0x04; 0x00]));
+  Alcotest.(check (result (pair bytes bytes) parse_err))
+    "0x0401_01 =decodes=to=> 0x01"
+    (Ok(to_bytes [0x01], Bytes.empty))
+    (decoder (to_bytes [0x04; 0x01; 0x01]));
+  let bytes_127 = Bytes.make 127 'c' in
+  let bytes_128 = Bytes.make 128 'd' in
+  Alcotest.(check (result (pair bytes bytes) parse_err))
+    "0x047F ^ bytes127 =decodes=to=> bytes_127"
+    (Ok(bytes_127, Bytes.empty))
+    (decoder (Bytes.cat (to_bytes [0x04; 0x7F]) bytes_127));
+  Alcotest.(check (result (pair bytes bytes) parse_err))
+    "0x048180 ^ bytes128 =decodes=to=> bytes_128"
+    (Ok(bytes_128, Bytes.empty))
+    (decoder (Bytes.cat (to_bytes [0x04; 0x81; 0x80]) bytes_128) )
+  
+let random_octets =
+  let octet_asn   = Asn.S.octet_string in
+  let octet_codec = Asn.codec Asn.ber octet_asn in 
+  let encoder     = Asn.encode octet_codec in 
+  let decoder     = Asn.decode octet_codec in 
+  QCheck.Test.make ~count: 1000
+    ~name:"Circular Random Octets"
+    QCheck.(string) 
+    ( fun s -> let b = Bytes.of_string s in decoder (encoder b) = Ok(b, Bytes.empty) )
+
 let encode_null () = 
   let null_asn = Asn.S.null in
   let null_codec = Asn.codec Asn.ber null_asn in
@@ -142,6 +192,7 @@ let () =
       [
         Alcotest.test_case "Encoding Booleans" `Quick encode_booleans;
         Alcotest.test_case "Encoding Integers" `Quick encode_integers;
+        Alcotest.test_case "Encoding Octets"   `Quick encode_octets;
         Alcotest.test_case "Encoding Null"     `Quick encode_null;
       ]
     );
@@ -149,6 +200,7 @@ let () =
       [
         Alcotest.test_case "Decoding Booleans" `Quick decode_booleans;
         Alcotest.test_case "Decoding Integers" `Quick decode_integers;
+        Alcotest.test_case "Decoding Octets"   `Quick decode_octets;
         Alcotest.test_case "Decoding Null"     `Quick decode_null;
       ]
     );
@@ -156,6 +208,7 @@ let () =
       [
         Alcotest.test_case "Circular Booleans" `Quick circular_booleans;
         QCheck_alcotest.to_alcotest random_ints;
+        QCheck_alcotest.to_alcotest random_octets;
         Alcotest.test_case "Circular Null"     `Quick circular_null;
       ]
     )

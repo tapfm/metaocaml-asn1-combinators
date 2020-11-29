@@ -48,21 +48,23 @@ type 'a t
 module S : sig
   type 'a element
 
-  val element  : 'a t -> 'a element
+  val element      : 'a t -> 'a element
 
   type 'a sequence
 
-  val sequence : 'a sequence -> 'a t
+  val sequence     : 'a sequence -> 'a t
 
-  val set      : 'a sequence -> 'a t
+  val set          : 'a sequence -> 'a t
 
-  val choice   : 'a t -> 'b t -> ('a, 'b) Asn_core.sum t
+  val choice       : 'a t -> 'b t -> ('a, 'b) Asn_core.sum t
 
-  val bool     : bool t
+  val bool         : bool t
 
-  val integer  : int64 t
+  val integer      : int64 t
 
-  val null     : unit t
+  val octet_string : bytes t
+
+  val null         : unit t
 
 end
 
