@@ -13,7 +13,6 @@ end
 module Boolean : Prim with type t = bool = struct
   type t = bool
 
-  (* TODO: needs to check length of b *)
   let of_bytes b = 
     if Bytes.length b = 1 then
       let r = Bytes.get_uint8 b 0 in

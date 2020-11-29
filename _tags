@@ -1,3 +1,4 @@
 "src": include
 "tests": include
 
+true : package(alcotest), package(qcheck), package(qcheck-alcotest)

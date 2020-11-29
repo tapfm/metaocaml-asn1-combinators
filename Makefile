@@ -21,8 +21,4 @@ lib:
 	$(OCB) src/asn.cmxa
 
 test-native:
-	$(OCB) tests/oid_test.native
-	$(OCB) tests/read_header_test.native
-	$(OCB) tests/write_header_test.native
-	$(OCB) tests/write_test.native
-	$(OCB) tests/read_test.native
+	$(OCB) tests/test.native

@@ -1,5 +1,9 @@
 S src
-s tests
+S tests
+
+PKG alcotest
+PKG qcheck
+PKG qcheck-alcotest
 
 B _build/src
 B _build/tests
