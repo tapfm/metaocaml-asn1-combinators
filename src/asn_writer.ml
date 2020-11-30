@@ -75,10 +75,10 @@ and encode_prim : type a. tag option -> a -> a prim -> writer = fun tag a prim -
   match prim with 
   | Bool       -> e @@ Prim.Boolean.to_writer a
   | Int        -> e @@ Prim.Integer.to_writer a
-  (* TODO: Implement remaing primitive types *)
-  | Bits       -> failwith "Unimplemented"
+  | Bits       -> e @@ Prim.Bits.to_writer a
   | Octets     -> e @@ Prim.Octets.to_writer a
   | Null       -> e @@ Prim.Null.to_writer a
+  (* TODO: Implement remaing primitive types *)
   | OID
   | CharString -> assert false
 

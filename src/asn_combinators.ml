@@ -12,6 +12,7 @@ end
 let bool         = Prim Bool
 and integer      = Prim Int
 and octet_string = Prim Octets
+and bit_string   = Prim Bits
 and null         = Prim Null
 
 let single a = Last a

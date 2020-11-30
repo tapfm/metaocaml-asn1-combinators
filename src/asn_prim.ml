@@ -61,8 +61,47 @@ module Null : Prim with type t = unit = struct
   let to_writer () =
     (0, fun (off : int) (bs : bytes) -> ())
 
-  let to_bytes () =
-    Bytes.empty
+end
+
+module Bits : Prim_s with type t = bool array = struct
+  
+  type t = bool array
+
+  let of_bytes bs =
+    assert (Bytes.length bs >= 1);
+    let unused = Bytes.get_uint8 bs 0 in 
+    let lbody  = Bytes.length bs - 1 in 
+    let num_bits = 8 * lbody - unused in 
+    Array.init num_bits (fun i -> let byte = (Bytes.get_uint8 bs (1 + (i / 8))) lsl (i mod 8) in byte land 0x80 = 0x80 )
+
+  let (|<) n = function 
+    | true  -> (n lsl 1) lor 1
+    | false -> (n lsl 1)
+
+  let of_array arr = 
+    let bs = Bytes.create ((Array.length arr + 7) / 8) in 
+    match
+      Array.fold_left
+        (fun (n, acc, i) bit ->
+          if n = 8 then
+            (Bytes.set_uint8 bs i acc; (1, 0 |< bit, i + 1) )
+          else (n + 1, acc |< bit, i))
+        (0,0,0)
+        arr
+    with
+    | (0, _acc, _) -> (0, bs)
+    | (n,  acc, i) -> 
+      Bytes.set_uint8 bs i (acc lsl (8 - n));
+      (8 - n, bs)
+
+  let to_writer arr =
+    let (unused, bbs) = of_array arr in 
+    let size = Bytes.length bbs in
+    (size + 1, fun off bs -> Bytes.set_uint8 bs off unused; (Bytes.blit bbs 0 bs (off + 1) size))
+  
+  let concat = Array.concat
+
+  let length arr = Array.length arr
 end
 
 module Octets : Prim_s with type t = bytes = struct
@@ -79,3 +118,4 @@ module Octets : Prim_s with type t = bytes = struct
 
   let length = Bytes.length
 end
+

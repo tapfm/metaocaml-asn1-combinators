@@ -114,6 +114,12 @@ let primitive t f = function
   | G.Prim (t1, bs) when Tag.equal t t1 -> f bs
   | g                                   -> failwith "Type mismatch parsing primitive"
 
+(* 
+String_like types are either encoded as:
+| Primitive   -> simple to decode
+| Constructed -> recursively made of smaller String_like value
+So more care is needed to decode it
+*)
 let string_like (type a) c t (module P : Prim.Prim_s with type t = a) =
   let rec p = function
     | G.Prim (t1, bs) when Tag.equal t t1 -> P.of_bytes bs
@@ -126,13 +132,8 @@ let string_like (type a) c t (module P : Prim.Prim_s with type t = a) =
 let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun cfg tag -> function
   | Bool       -> primitive tag Prim.Boolean.of_bytes
   | Int        -> primitive tag Prim.Integer.of_bytes
-  | Bits       -> failwith "Unimplemented"
-  | Octets     -> (* Octets are either:
-                      | Primitive   -> simple to decode
-                      | Constructed -> recursively made of smaller Octets
-                     So more care is needed to decode it
-                  *)
-                  string_like cfg tag (module Prim.Octets)
+  | Bits       -> string_like cfg tag (module Prim.Bits)
+  | Octets     -> string_like cfg tag (module Prim.Octets)
   | Null       -> primitive tag Prim.Null.of_bytes
   | OID
   | CharString -> failwith "Unimplemented"

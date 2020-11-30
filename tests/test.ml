@@ -111,6 +111,60 @@ let random_ints =
     QCheck.(int64) 
     ( fun i -> decoder (encoder i) = Ok(i, Bytes.empty) )
 
+let encode_bits () = 
+  let bit_asn   = Asn.S.bit_string in 
+  let bit_codec = Asn.codec Asn.ber bit_asn in 
+  let encoder   = Asn.encode bit_codec in 
+  Alcotest.(check bytes) "\"\" =encodes=to=> 0x0301_00"
+    (to_bytes [0x03; 0x01; 0x00])
+    (encoder [||]);
+  Alcotest.(check bytes) "0b1 =encodes=to=> 0x0302_07_80"
+    (to_bytes [0x03; 0x02; 0x07; 0x80])
+    (encoder [|true|]);
+  Alcotest.(check bytes) "0b11 =encodes=to=> 0x0302_06_C0"
+    (to_bytes [0x03; 0x02; 0x06; 0xC0])
+    (encoder [|true; true|]);
+  Alcotest.(check bytes) "0b1111_1111 =encodes=to=> 0x0302_00_FF"
+    (to_bytes [0x03; 0x02; 0x00; 0xFF])
+    (encoder [|true; true; true; true; true; true; true; true|]);
+  Alcotest.(check bytes) "0b0000_0000 =encodes=to=> 0x0302_00_00"
+    (to_bytes [0x03; 0x02; 0x00; 0x00])
+    (encoder [|false; false; false; false; false; false; false; false|]);
+  Alcotest.(check bytes) "0b1010_1010 =encodes=to=> 0x0302_00_AA"
+    (to_bytes [0x03; 0x02; 0x00; 0xAA])
+    (encoder [|true; false; true; false; true; false; true; false|])
+
+let decode_bits () = 
+  let bit_asn   = Asn.S.bit_string in 
+  let bit_codec = Asn.codec Asn.ber bit_asn in 
+  let decoder   = Asn.decode bit_codec in 
+  Alcotest.(check (result (pair (array bool) bytes) parse_err))
+    "0x0301_08 =decodes=to=> \"\""
+    (Ok([||], Bytes.empty))
+    (decoder (to_bytes [0x03; 0x01; 0x00]));
+  Alcotest.(check (result (pair (array bool) bytes) parse_err))
+    "0x0302_07_80 =decodes=to=> 0b1"
+    (Ok([|true|], Bytes.empty))
+    (decoder (to_bytes [0x03; 0x02; 0x07; 0x80]));
+  Alcotest.(check (result (pair (array bool) bytes) parse_err))
+    "0x0302_06_C0 =decodes=to=> 0b11"
+    (Ok([|true; true|], Bytes.empty))
+    (decoder (to_bytes [0x03; 0x02; 0x06; 0xC0]));
+  Alcotest.(check (result (pair (array bool) bytes) parse_err))
+    "0x0302_00_AA =decodes=to=> 0b1010_1010"
+    (Ok([|true; false; true; false; true; false; true; false|], Bytes.empty))
+    (decoder (to_bytes [0x03; 0x02; 0x00; 0xAA]))
+
+let random_bits =
+  let bit_asn   = Asn.S.bit_string in 
+  let bit_codec = Asn.codec Asn.ber bit_asn in 
+  let encoder   = Asn.encode bit_codec in
+  let decoder   = Asn.decode bit_codec in
+  QCheck.Test.make ~count: 1000
+    ~name:"Circular Random Bit Strings"
+    QCheck.(array bool) 
+    ( fun arr -> decoder (encoder arr) = Ok(arr, Bytes.empty) )
+
 
 (* encode_octets and decode_octets are for simpler / shorter test -> more complicated one will be covered in the circular tests*)
 let encode_octets () = 
@@ -190,18 +244,20 @@ let () =
   Alcotest.run "Testing Primitives" [
     ("Encoding Primitives",
       [
-        Alcotest.test_case "Encoding Booleans" `Quick encode_booleans;
-        Alcotest.test_case "Encoding Integers" `Quick encode_integers;
-        Alcotest.test_case "Encoding Octets"   `Quick encode_octets;
-        Alcotest.test_case "Encoding Null"     `Quick encode_null;
+        Alcotest.test_case "Encoding Booleans"   `Quick encode_booleans;
+        Alcotest.test_case "Encoding Integers"   `Quick encode_integers;
+        Alcotest.test_case "Encoding Bit String" `Quick encode_bits;
+        Alcotest.test_case "Encoding Octets"     `Quick encode_octets;
+        Alcotest.test_case "Encoding Null"       `Quick encode_null;
       ]
     );
     ("Decoding Primitives",
       [
-        Alcotest.test_case "Decoding Booleans" `Quick decode_booleans;
-        Alcotest.test_case "Decoding Integers" `Quick decode_integers;
-        Alcotest.test_case "Decoding Octets"   `Quick decode_octets;
-        Alcotest.test_case "Decoding Null"     `Quick decode_null;
+        Alcotest.test_case "Decoding Booleans"   `Quick decode_booleans;
+        Alcotest.test_case "Decoding Integers"   `Quick decode_integers;
+        Alcotest.test_case "Decoding Bit String" `Quick encode_bits;
+        Alcotest.test_case "Decoding Octets"     `Quick decode_octets;
+        Alcotest.test_case "Decoding Null"       `Quick decode_null;
       ]
     );
     ("Circular Primitives",
@@ -209,6 +265,7 @@ let () =
         Alcotest.test_case "Circular Booleans" `Quick circular_booleans;
         QCheck_alcotest.to_alcotest random_ints;
         QCheck_alcotest.to_alcotest random_octets;
+        QCheck_alcotest.to_alcotest random_bits;
         Alcotest.test_case "Circular Null"     `Quick circular_null;
       ]
     )

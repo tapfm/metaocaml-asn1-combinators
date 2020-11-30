@@ -28,7 +28,7 @@ and _ sequence =
 and _ prim = 
   | Bool       : bool       prim
   | Int        : int64      prim
-  | Bits       : bits       prim
+  | Bits       : bool array prim
   | Octets     : bytes      prim
   | Null       : unit       prim
   | OID        : Asn_oid.t  prim
