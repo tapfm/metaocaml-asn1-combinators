@@ -187,7 +187,7 @@ let decode_octets () =
   let octet_codec = Asn.codec Asn.ber octet_asn in 
   let decoder     = Asn.decode octet_codec in 
   Alcotest.(check (result (pair bytes bytes) parse_err)) 
-    "0x0401_01 =decodes=to=> \"\"" 
+    "0x0400 =decodes=to=> \"\"" 
     (Ok(Bytes.empty, Bytes.empty))
     (decoder (to_bytes [0x04; 0x00]));
   Alcotest.(check (result (pair bytes bytes) parse_err))
@@ -240,6 +240,52 @@ let circular_null () =
     (Ok((), Bytes.empty))
     (decoder (encoder ()))
 
+
+let encode_strings (string_asn, id) () = 
+  let string_codec = Asn.codec Asn.ber string_asn in 
+  let encoder      = Asn.encode string_codec in 
+  Alcotest.(check bytes) "\"\" =encodes=to=> id ^ 0x00" (to_bytes [id; 0x00]) (encoder "");
+  Alcotest.(check bytes) "0x41 =encodes=to=> id ^ 0x01_41" (to_bytes [id; 0x01; 0x41]) (encoder "A" );
+  let string_127 = Bytes.make 127 'a' in 
+  Alcotest.(check bytes) "string_127 =encodes=to=> id ^ 0x7F ^ bytes127"
+    (Bytes.cat (to_bytes [id; 0x7F]) string_127)
+    (encoder (Bytes.to_string string_127));
+  let string_128 = Bytes.make 128 'b' in 
+  Alcotest.(check bytes) "string_128 =encodes=to=> id ^ 0x8180 ^ bytes128"
+    (Bytes.cat (to_bytes [id; 0x81; 0x80]) string_128)
+    (encoder (Bytes.to_string string_128))
+
+let decode_strings (string_asn, id) () =
+  let string_codec = Asn.codec Asn.ber string_asn in 
+  let decoder      = Asn.decode string_codec in 
+  Alcotest.(check (result (pair string bytes) parse_err)) 
+    "id ^ 0x00 =decodes=to=> \"\"" 
+    (Ok("", Bytes.empty))
+    (decoder (to_bytes [id; 0x00]));
+  Alcotest.(check (result (pair string bytes) parse_err))
+    "id ^ 0x01_41 =decodes=to=> 0x41"
+    (Ok("A", Bytes.empty))
+    (decoder (to_bytes [id; 0x01; 0x41]));
+  let bytes_127 = Bytes.make 127 'c' in
+  let bytes_128 = Bytes.make 128 'd' in
+  Alcotest.(check (result (pair string bytes) parse_err))
+    "id ^ 0x7F ^ bytes127 =decodes=to=> bytes_127"
+    (Ok(Bytes.to_string bytes_127, Bytes.empty))
+    (decoder (Bytes.cat (to_bytes [id; 0x7F]) bytes_127));
+  Alcotest.(check (result (pair string bytes) parse_err))
+    "id ^ 0x8180 ^ bytes128 =decodes=to=> bytes_128"
+    (Ok(Bytes.to_string bytes_128, Bytes.empty))
+    (decoder (Bytes.cat (to_bytes [id; 0x81; 0x80]) bytes_128) )
+
+let random_strings string_asn = 
+  let string_codec = Asn.codec Asn.ber string_asn in 
+  let encoder      = Asn.encode string_codec in 
+  let decoder      = Asn.decode string_codec in 
+  QCheck.Test.make ~count: 1000
+    ~name:"Circular Random Strings"
+    QCheck.(string) 
+    (fun s -> decoder (encoder s) = Ok(s, Bytes.empty) )
+
 let () = 
   Alcotest.run "Testing Primitives" [
     ("Encoding Primitives",
@@ -250,6 +296,20 @@ let () =
         Alcotest.test_case "Encoding Octets"     `Quick encode_octets;
         Alcotest.test_case "Encoding Null"       `Quick encode_null;
       ]
+      @ (*This is a bit grim...*)
+      (List.map (fun (a, i) -> Alcotest.test_case ("Encoding CharString with tag " ^ (Int.to_string i)) `Quick (encode_strings(a, i))) [
+        (Asn.S.utf8_string      , 0x0C);
+        (Asn.S.numeric_string   , 0x12);
+        (Asn.S.printable_string , 0x13);
+        (Asn.S.teletex_string   , 0x14);
+        (Asn.S.videotex_string  , 0x15);
+        (Asn.S.ia5_string       , 0x16);
+        (Asn.S.graphic_string   , 0x19);
+        (Asn.S.visible_string   , 0x1A);
+        (Asn.S.general_string   , 0x1C);
+        (Asn.S.universal_string , 0x1C);
+        (Asn.S.bmp_string       , 0x1E);
+      ])
     );
     ("Decoding Primitives",
       [
@@ -259,6 +319,20 @@ let () =
         Alcotest.test_case "Decoding Octets"     `Quick decode_octets;
         Alcotest.test_case "Decoding Null"       `Quick decode_null;
       ]
+      @ (*This is a bit grim...*)
+      (List.map (fun (a, i) -> Alcotest.test_case ("Encoding CharString with tag " ^ (Int.to_string i)) `Quick (decode_strings(a, i))) [
+        (Asn.S.utf8_string      , 0x0C);
+        (Asn.S.numeric_string   , 0x12);
+        (Asn.S.printable_string , 0x13);
+        (Asn.S.teletex_string   , 0x14);
+        (Asn.S.videotex_string  , 0x15);
+        (Asn.S.ia5_string       , 0x16);
+        (Asn.S.graphic_string   , 0x19);
+        (Asn.S.visible_string   , 0x1A);
+        (Asn.S.general_string   , 0x1C);
+        (Asn.S.universal_string , 0x1C);
+        (Asn.S.bmp_string       , 0x1E);
+      ])
     );
     ("Circular Primitives",
       [
@@ -268,5 +342,19 @@ let () =
         QCheck_alcotest.to_alcotest random_bits;
         Alcotest.test_case "Circular Null"     `Quick circular_null;
       ]
+      @ (*This is a bit grim...*)
+      (List.map (fun a -> QCheck_alcotest.to_alcotest (random_strings a)) [
+        (Asn.S.utf8_string      );
+        (Asn.S.numeric_string   );
+        (Asn.S.printable_string );
+        (Asn.S.teletex_string   );
+        (Asn.S.videotex_string  );
+        (Asn.S.ia5_string       );
+        (Asn.S.graphic_string   );
+        (Asn.S.visible_string   );
+        (Asn.S.general_string   );
+        (Asn.S.universal_string );
+        (Asn.S.bmp_string       );
+      ])
     )
   ]

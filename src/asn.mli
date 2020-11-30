@@ -68,6 +68,20 @@ module S : sig
 
   val null         : unit t
 
+  (*Restricted Character String types*)
+
+  val utf8_string      : string t
+  val numeric_string   : string t
+  val printable_string : string t
+  val teletex_string   : string t
+  val videotex_string  : string t
+  val ia5_string       : string t
+  val graphic_string   : string t
+  val visible_string   : string t
+  val general_string   : string t
+  val universal_string : string t
+  val bmp_string       : string t
+
 end
 
 

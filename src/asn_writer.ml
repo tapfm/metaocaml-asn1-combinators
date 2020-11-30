@@ -56,6 +56,8 @@ module Header = struct
 
 end
 
+let (@?) x_opt y = match x_opt with Some x -> x | None -> y
+
 let e_primitive tag body = 
   let (len, _) = body in
   Header.encode tag Primitive len <+> body
@@ -68,10 +70,16 @@ let rec encode : type a. config -> tag option -> a -> a asn -> writer
   | Set _
   | Choice _ -> (* TODO: constructed types *)
     assert false
+
+  | Implicit (t, asn) ->
+      encode conf (Some(tag @? t)) a asn
+  | Explicit (t, asn) ->
+      failwith "Unimplemented" (*I believe that this relies on constructed types*)
+
   | Prim p -> encode_prim tag a p
 
 and encode_prim : type a. tag option -> a -> a prim -> writer = fun tag a prim -> 
-  let e = e_primitive (match tag with | Some x -> x | None -> tag_of_prim prim) in 
+  let e = e_primitive (tag @? tag_of_prim prim) in 
   match prim with 
   | Bool       -> e @@ Prim.Boolean.to_writer a
   | Int        -> e @@ Prim.Integer.to_writer a
@@ -79,7 +87,7 @@ and encode_prim : type a. tag option -> a -> a prim -> writer = fun tag a prim -
   | Octets     -> e @@ Prim.Octets.to_writer a
   | Null       -> e @@ Prim.Null.to_writer a
   (* TODO: Implement remaing primitive types *)
-  | OID
-  | CharString -> assert false
+  | OID        -> failwith "Unimplemented"
+  | CharString -> e @@ Prim.Gen_string.to_writer a
 
 let to_writer cfg asn a = encode cfg None a asn

@@ -119,3 +119,14 @@ module Octets : Prim_s with type t = bytes = struct
   let length = Bytes.length
 end
 
+module Gen_string : Prim_s with type t = string = struct
+  type t = string
+
+  let of_bytes = Bytes.to_string
+
+  let to_writer s = let n = String.length s in (n, fun off bs -> Bytes.blit_string s 0 bs off n)
+
+  let concat = String.concat ""
+
+  let length = String.length
+end

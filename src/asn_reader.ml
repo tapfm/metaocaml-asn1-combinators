@@ -110,6 +110,8 @@ module Gen = struct
   let parse cfg bs = try node cfg bs with Invalid_argument _ -> failwith "Unexpected EOF"
 end
 
+let (@?) x_opt y = match x_opt with Some x -> x | None -> y
+
 let primitive t f = function 
   | G.Prim (t1, bs) when Tag.equal t t1 -> f bs
   | g                                   -> failwith "Type mismatch parsing primitive"
@@ -135,13 +137,17 @@ let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun cfg tag -> functi
   | Bits       -> string_like cfg tag (module Prim.Bits)
   | Octets     -> string_like cfg tag (module Prim.Octets)
   | Null       -> primitive tag Prim.Null.of_bytes
-  | OID
-  | CharString -> failwith "Unimplemented"
+  | OID        -> failwith "Unimplemented"
+  | CharString -> string_like cfg tag (module Prim.Gen_string)
 
 let rec c_asn : type a. a asn -> config -> G.t -> a = fun asn cfg ->
   let rec go : type a. ?t:tag -> a asn -> G.t -> a = fun ?t -> function
-  | Prim p -> c_prim cfg (match t with | Some x -> x | None -> tag_of_prim p) p 
-  | _      -> failwith "Unimplemented" in
+  | Sequence s       
+  | Set s            -> failwith "Unimplemented - Set or Sequence"
+  | Choice (a1, a2)  -> failwith "Unimplemented - Choice"
+  | Implicit (t0, a) -> go ~t:(t @? t0) a
+  | Explicit (t0, a) -> failwith "Unimplemented - Explicit relies on constructed types"
+  | Prim p           -> c_prim cfg (match t with | Some x -> x | None -> tag_of_prim p) p in
 
   go asn
 
