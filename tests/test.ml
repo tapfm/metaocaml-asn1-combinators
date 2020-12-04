@@ -286,6 +286,74 @@ let random_strings string_asn =
     QCheck.(string) 
     (fun s -> decoder (encoder s) = Ok(s, Bytes.empty) )
 
+(*mostly edge cases atm*)
+let encode_reals () = 
+  let real_asn   = Asn.S.real in
+  let real_codec = Asn.codec Asn.ber real_asn in 
+  let encoder    = Asn.encode real_codec in 
+  Alcotest.(check bytes)
+  "0. =encodes=to=> 0x0900"
+  (to_bytes [0x09; 0x00])
+  (encoder 0.);
+  Alcotest.(check bytes)
+  "infinity =encodes=to=> 0x900140"
+  (to_bytes [0x09; 0x01; 0x40])
+  (encoder infinity);
+  Alcotest.(check bytes)
+  "neg infinity =encodes=to=> 0x900141"
+  (to_bytes [0x09; 0x01; 0x41])
+  (encoder neg_infinity);
+  Alcotest.(check bytes)
+  "NaN =encodes=to=> 0x900142"
+  (to_bytes [0x09; 0x01; 0x42])
+  (encoder nan);
+  Alcotest.(check bytes)
+  "neg zero =encodes=to=> 0x900143"
+  (to_bytes [0x09; 0x01; 0x43])
+  (encoder Float.(neg zero))
+
+let decode_reals () = 
+  let real_asn   = Asn.S.real in
+  let real_codec = Asn.codec Asn.ber real_asn in 
+  let decoder    = Asn.decode real_codec in 
+  Alcotest.(check (result (pair (float 0.0001) bytes) parse_err))
+  "0x0900 =decodes=to=> 0."
+  (Ok(0., Bytes.empty))
+  (decoder (to_bytes [0x09; 0x00]));
+  Alcotest.(check (result (pair (float 0.0001) bytes) parse_err))
+  "0x900140 =decodes=to=> infinity"
+  (Ok(infinity, Bytes.empty))
+  (decoder (to_bytes [0x09; 0x01; 0x40]));
+  Alcotest.(check (result (pair (float 0.0001) bytes) parse_err))
+  "0x900141 =decodes=to=> neg infinity"
+  (Ok(neg_infinity, Bytes.empty))
+  (decoder (to_bytes [0x09; 0x01; 0x41]));
+  Alcotest.(check (result (pair (float 0.0001) bytes) parse_err))
+  "0x900142 =decodes=to=> NaN"
+  (Ok(nan, Bytes.empty))
+  (decoder (to_bytes [0x09; 0x01; 0x42]));
+  Alcotest.(check (result (pair (float 0.0001) bytes) parse_err))
+  "0x900143 =decodes=to=> neg zero"
+  (Ok(Float.(neg zero), Bytes.empty))
+  (decoder (to_bytes [0x09; 0x01; 0x43]));
+  let encoder = Asn.encode real_codec in 
+  let v       = Float.(one) in 
+  Alcotest.(check (result (pair (float 0.0001) bytes) parse_err))
+  "0x900143 =decodes=to=> neg zero"
+  (Ok(v, Bytes.empty))
+  (decoder (encoder v))
+
+
+let random_reals = 
+  let real_asn   = Asn.S.real in
+  let real_codec = Asn.codec Asn.ber real_asn in 
+  let encoder    = Asn.encode real_codec in 
+  let decoder    = Asn.decode real_codec in 
+  QCheck.Test.make ~count: 1000
+    ~name:"Circular Random Reals"
+    QCheck.(float) 
+    (fun f -> let Ok(f', b) = decoder (encoder f) in Float.(compare (abs (f -. f')) 0.001) < 0 )
+
 let () = 
   Alcotest.run "Testing Primitives" [
     ("Encoding Primitives",
@@ -310,17 +378,21 @@ let () =
         (Asn.S.universal_string , 0x1C);
         (Asn.S.bmp_string       , 0x1E);
       ])
+      @
+      [
+        Alcotest.test_case "Encoding Reals"      `Quick encode_reals;
+      ]
     );
     ("Decoding Primitives",
       [
         Alcotest.test_case "Decoding Booleans"   `Quick decode_booleans;
         Alcotest.test_case "Decoding Integers"   `Quick decode_integers;
-        Alcotest.test_case "Decoding Bit String" `Quick encode_bits;
+        Alcotest.test_case "Decoding Bit String" `Quick decode_bits;
         Alcotest.test_case "Decoding Octets"     `Quick decode_octets;
         Alcotest.test_case "Decoding Null"       `Quick decode_null;
       ]
       @ (*This is a bit grim...*)
-      (List.map (fun (a, i) -> Alcotest.test_case ("Encoding CharString with tag " ^ (Int.to_string i)) `Quick (decode_strings(a, i))) [
+      (List.map (fun (a, i) -> Alcotest.test_case ("Decoding CharString with tag " ^ (Int.to_string i)) `Quick (decode_strings(a, i))) [
         (Asn.S.utf8_string      , 0x0C);
         (Asn.S.numeric_string   , 0x12);
         (Asn.S.printable_string , 0x13);
@@ -333,6 +405,10 @@ let () =
         (Asn.S.universal_string , 0x1C);
         (Asn.S.bmp_string       , 0x1E);
       ])
+      @
+      [
+        Alcotest.test_case "Decoding Reals"      `Quick decode_reals
+      ]
     );
     ("Circular Primitives",
       [
@@ -356,5 +432,9 @@ let () =
         (Asn.S.universal_string );
         (Asn.S.bmp_string       );
       ])
+      @
+      [
+        QCheck_alcotest.to_alcotest random_reals;
+      ]
     )
   ]

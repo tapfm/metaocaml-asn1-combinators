@@ -138,6 +138,7 @@ let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun cfg tag -> functi
   | Octets     -> string_like cfg tag (module Prim.Octets)
   | Null       -> primitive tag Prim.Null.of_bytes
   | OID        -> failwith "Unimplemented"
+  | Real       -> primitive tag Prim.Real.of_bytes
   | CharString -> string_like cfg tag (module Prim.Gen_string)
 
 let rec c_asn : type a. a asn -> config -> G.t -> a = fun asn cfg ->

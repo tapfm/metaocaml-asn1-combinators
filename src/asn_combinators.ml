@@ -27,6 +27,7 @@ and integer          = Prim Int
 and octet_string     = Prim Octets
 and bit_string       = Prim Bits
 and null             = Prim Null
+and real             = Prim Real
 and character_string = Prim CharString
 
 let string tag = implicit ~cls:`Universal tag character_string

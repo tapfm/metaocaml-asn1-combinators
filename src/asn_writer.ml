@@ -88,6 +88,7 @@ and encode_prim : type a. tag option -> a -> a prim -> writer = fun tag a prim -
   | Null       -> e @@ Prim.Null.to_writer a
   (* TODO: Implement remaing primitive types *)
   | OID        -> failwith "Unimplemented"
+  | Real       -> e @@ Prim.Real.to_writer a
   | CharString -> e @@ Prim.Gen_string.to_writer a
 
 let to_writer cfg asn a = encode cfg None a asn

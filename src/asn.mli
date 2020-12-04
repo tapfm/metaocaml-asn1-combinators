@@ -68,6 +68,8 @@ module S : sig
 
   val null         : unit t
 
+  val real         : float t
+
   (*Restricted Character String types*)
 
   val utf8_string      : string t

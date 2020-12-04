@@ -70,6 +70,7 @@ and _ prim =
   | Octets     : bytes      prim
   | Null       : unit       prim
   | OID        : Asn_oid.t  prim
+  | Real       : float      prim
   | CharString : string     prim
 
 type error = [ `Parse of string ]
@@ -98,4 +99,5 @@ let tag_of_prim : type a. a prim -> tag =
     | Octets     -> Universal 0x04
     | Null       -> Universal 0x05
     | OID        -> Universal 0x06
+    | Real       -> Universal 0x09
     | CharString -> Universal 0x1D
