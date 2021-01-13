@@ -72,35 +72,42 @@ let encode_integers () =
   let int_codec = Asn.codec Asn.ber int_asn in
   let encoder   = Asn.encode int_codec in
   Alcotest.(check bytes)
-    "0 =encodes=to=> 0x02_08_00000000"
-    (Bytes.cat (to_bytes [0x02; 0x08]) (int64_to_bytes Int64.zero))
-    (encoder Int64.zero);
+    "0 =encodes=to=> 0x02_01_00"
+    (to_bytes [0x02; 0x01; 0x00])
+    (encoder Z.zero);
   Alcotest.(check bytes)
-    "0 =encodes=to=> 0x02_08_11111111"
-    (Bytes.cat (to_bytes [0x02; 0x08]) (int64_to_bytes Int64.minus_one))
-    (encoder Int64.minus_one);
+    "-1 =encodes=to=> 0x02_01_FF"
+    (to_bytes [0x02; 0x01; 0xFF]) 
+    (encoder Z.minus_one);
   Alcotest.(check bytes)
-    "0 =encodes=to=> 0x02_08_00000001"
-    (Bytes.cat (to_bytes [0x02; 0x08]) (int64_to_bytes Int64.one))
-    (encoder Int64.one)
+    "1 =encodes=to=> 0x02_01_01"
+    (to_bytes [0x02; 0x01; 0x01])
+    (encoder Z.one)
+
+
+let z_testable = Alcotest.testable (fun ppf _ -> Fmt.pf ppf "*shrug*") (Z.equal)
 
 let decode_integers () = 
   let int_asn   = Asn.S.integer in 
   let int_codec = Asn.codec Asn.ber int_asn in
   let decoder   = Asn.decode int_codec in
-  Alcotest.(check (result (pair int64 bytes) parse_err))
-    "0x0101FF =decodes=to=> true"
-    (Ok( (Int64.zero), Bytes.empty)) 
-    (decoder (Bytes.cat (to_bytes [0x02; 0x08]) (int_to_bytes 0)) );
-  Alcotest.(check (result (pair int64 bytes) parse_err))
-    "0x010100 =decodes=to=> false"
-    (Ok( (Int64.one), Bytes.empty))
-    (decoder (Bytes.cat (to_bytes [0x02; 0x08]) (int_to_bytes 1)) );
-  Alcotest.(check (result (pair int64 bytes) parse_err))
-    "0x010105 =decodes=to=> true"
-    (Ok( (Int64.minus_one ), Bytes.empty))
-    (decoder (Bytes.cat (to_bytes [0x02; 0x08]) (int_to_bytes(-1)) ) )
+  Alcotest.(check (result (pair z_testable bytes) parse_err))
+    "0x010100 =decodes=to=> 0"
+    (Ok( (Z.zero), Bytes.empty)) 
+    (decoder (to_bytes [0x02; 0x01; 00]) );
+  Alcotest.(check (result (pair z_testable bytes) parse_err))
+    "0x010100 =decodes=to=> 1"
+    (Ok( (Z.one), Bytes.empty))
+    (decoder (to_bytes [0x02; 0x01; 0x01]) );
+  Alcotest.(check (result (pair z_testable bytes) parse_err))
+    "0x010105 =decodes=to=> -1"
+    (Ok( (Z.minus_one), Bytes.empty))
+    (decoder (to_bytes [0x02; 0x01; 0xFF]) )
 
+
+let z_gen = QCheck.Gen.(map Z.of_int int)
+
+let z_qcheck = QCheck.make z_gen ~print:Z.to_string
 let random_ints =
   let int_asn   = Asn.S.integer in
   let int_codec = Asn.codec Asn.ber int_asn in
@@ -108,8 +115,8 @@ let random_ints =
   let decoder   = Asn.decode int_codec in
   QCheck.Test.make ~count: 1000
     ~name:"Circular Random Integers"
-    QCheck.(int64) 
-    ( fun i -> decoder (encoder i) = Ok(i, Bytes.empty) )
+    QCheck.(z_qcheck) 
+    ( fun z -> decoder (encoder z) = Ok(z, Bytes.empty))
 
 let encode_bits () = 
   let bit_asn   = Asn.S.bit_string in 
@@ -352,7 +359,7 @@ let random_reals =
   QCheck.Test.make ~count: 1000
     ~name:"Circular Random Reals"
     QCheck.(float) 
-    (fun f -> let Ok(f', b) = decoder (encoder f) in Float.(compare (abs (f -. f')) 0.001) < 0 )
+    (fun f -> match decoder (encoder f) with | Ok(f', b) -> Float.(compare (abs (f -. f')) 0.001) < 0 | _ -> assert false )
 
 let () = 
   Alcotest.run "Testing Primitives" [

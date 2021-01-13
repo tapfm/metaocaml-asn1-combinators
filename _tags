@@ -1,4 +1,4 @@
 "src": include
 "tests": include
 
-true : package(alcotest), package(qcheck), package(qcheck-alcotest)
+true : package(alcotest), package(qcheck), package(qcheck-alcotest), package(zarith)

@@ -4,6 +4,7 @@ S tests
 PKG alcotest
 PKG qcheck
 PKG qcheck-alcotest
+PKG zarith
 
 B _build/src
 B _build/tests

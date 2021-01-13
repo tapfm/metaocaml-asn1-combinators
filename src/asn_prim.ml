@@ -52,20 +52,69 @@ module Boolean : Prim with type t = bool = struct
     (1, fun off bs -> Bytes.set_uint8 bs off encoded)
 end
 
-module Integer : Prim with type t = int64 = struct
+module Integer : Prim with type t = Z.t = struct
   (* This should be changed to a type that can handle "primitive" integers and big integers *)
-  type t = int64
+  type t = Z.t
 
-  let of_bytes b = match Bytes.length b with 
-    | 1 -> Int64.of_int(Bytes.get_int8 b 0)
-    | 2 -> Int64.of_int(Bytes.get_int16_be b 0)
-    | 4 -> Int64.of_int32(Bytes.get_int32_be b 0)
-    | 8 -> Bytes.get_int64_be b 0
-    (* TODO: need to deal with arbitrary length integers *)
-    | _ -> failwith "Unsupported length of integer"
+  let of_int8  x = Z.of_int (if x >= 0x80   then x - 0x100   else x)
+  let of_int16 x = Z.of_int (if x >= 0x8000 then x - 0x10000 else x)
 
-  let to_writer i = 
-    (8, fun off bs -> Bytes.set_int64_be bs off i)
+  let of_bytes bs = 
+    let rec go acc i = function 
+      | n when n >= 8 ->
+        let w = Z.of_int64 (Bytes.get_int64_be bs i) in 
+        go Z.((acc lsl 64) lor (extract w 0 64)) (i + 8) (n - 8)
+      | n when n >= 4 -> 
+        let w = Z.of_int32 (Bytes.get_int32_be bs i) in 
+        go Z.((acc lsl 32) lor (extract w 0 32)) (i + 4) (n - 4)
+      | n when n >= 2 -> 
+        let w = Z.of_int(Bytes.get_uint16_be bs i) in
+        go Z.((acc lsl 16) lor w) (i + 2) (n - 2)
+      | 1 ->
+        let w = Z.of_int(Bytes.get_uint8 bs i) in
+        Z.((acc lsl 8) lor w)
+      | _ -> acc in
+    if Bytes.length bs > 1
+      then 
+        let w0 = Bytes.get_int16_be bs 0 in 
+        match w0 land 0xFF80 with 
+        | 0x0000
+        | 0xFF80 -> failwith "Integer Error: Redundant form"
+        | _      -> (match Bytes.length bs with
+                      | 2 -> Z.of_int   (Bytes.get_int16_be bs 0)
+                      | 4 -> Z.of_int32 (Bytes.get_int32_be bs 0)
+                      | 8 -> Z.of_int64 (Bytes.get_int64_be bs 0)
+                      | n -> go (Z.of_int w0) 2 (n - 2) )
+      else 
+        match Bytes.length bs with 
+        | 0 -> failwith "Integer Error: Length = 0"
+        | 1 -> Z.of_int   (Bytes.get_int8     bs 0)
+        | n -> assert false
+
+  let last8 z = Z.(extract z 0 8 |> to_int)
+
+  let to_writer n = 
+    let sz  = Z.size n * 8 + 1 in 
+    let sz1 = sz - 1 in 
+    let bs  = Bytes.create sz in 
+
+    let rec write i n = 
+      if n = Z.minus_one || n = Z.zero 
+        then i
+        else (Bytes.set_uint8 bs i (last8 n);
+              write (pred i) Z.(n asr 8) ) in
+    let (bad_b0, padding) = 
+        if n >= Z.zero
+          then ((<=) 0x80, 0x00)
+          else ((>)  0x80, 0xFF) in 
+    let off =
+      let i = write sz1 n in
+      if  i = sz1 || bad_b0 (Bytes.get_uint8 bs (succ i)) 
+        then (Bytes.set_uint8 bs i padding; i)
+        else succ i in 
+    let b2 = Bytes.sub bs off (sz - off) in 
+    let x  = Bytes.length b2 in 
+    (x, fun off bs -> Bytes.blit b2 0 bs off x)
 
 end
 
@@ -234,4 +283,75 @@ module Gen_string : Prim_s with type t = string = struct
   let concat = String.concat ""
 
   let length = String.length
+end
+
+module OID : Prim with type t = Asn_oid.t = struct
+
+  open Asn_oid
+
+  (*let (<+>) = Asn_writer.(<+>)*)
+
+  let (<+>) : writer -> writer -> writer =
+    fun (len_1, writer_1) (len_2, writer_2) ->
+    let w off bs = 
+      (writer_1 off bs; writer_2 (off + len_1) bs) in
+    (len_1 + len_2, w)
+
+  type t = Asn_oid.t
+
+  let chain bs i n = 
+    let rec go acc bs i = function 
+      | 0 -> failwith "OID Error: unterminated component"
+      | n -> 
+        match Bytes.get_uint8 bs i with 
+        | 0x80 when acc = 0L -> failwith "OID Error: Redundant form"
+        | b ->
+          let lo = b land 0x7F in 
+          let acc = Int64.(logor (shift_left acc 7) (of_int lo)) in 
+          if b < 0x80 then (Int64.to_int acc, i + 1) else go acc bs (i + 1) (n - 1) in 
+    if n < 1 then (failwith "OID Error: 0 length component")
+    else go 0L bs i (min n 8)
+
+  let of_bytes bs =
+    let rec components bs i = function 
+      | 0 -> []
+      | n -> let (c, i') = chain bs i n in 
+             c :: components bs i' (n + i - i') in
+    match Bytes.length bs with 
+    | 0 -> failwith "OID Error: 0 length"
+    | n -> let (b1, i) = chain bs 0 n in
+           let v1 = (min (b1 / 40) 2) in
+           let v2 = b1 - (40 * v1) in 
+           match base_opt v1 v2 with 
+             | Some b -> b <|| components bs i (n - 1)
+             | None   -> failwith "OID Error: Invalid Base"
+
+
+  let write_uint8_list lst = 
+    let open List in 
+    let w off bs = 
+      iteri (fun i -> Bytes.set_uint8 bs (off + i)) lst in 
+    (length lst, w)
+
+  let to_writer (Oid(v1, v2, vs)) = 
+    let cons x = function [] -> [x] | xs -> x lor 0x80 :: xs in 
+    let rec component xs x = 
+      if x < 0x80 then cons x xs
+      else component (cons (x land 0x7f) xs) (x lsr 7)
+    and values = function
+      | []    -> (0, fun _off _bs -> ())
+      | v::vs -> (write_uint8_list (component [] v)) <+> values vs in 
+    (1, fun off bs -> Bytes.set_uint8 bs off (v1 * 40 + v2)) <+> values vs
+end
+
+
+(*This just treats a time value as a string*)
+module Time : Prim with type t = string = struct
+  type t = string
+
+  let of_bytes = Bytes.to_string
+
+  let to_writer str =
+    let len = String.length str in 
+    (len, fun off bs -> Bytes.blit_string str 0 bs off len)
 end

@@ -42,22 +42,20 @@ type tag = Tag.t
 type writer = int * (int -> bytes -> unit)
 
 type _ asn = 
-  | Sequence  : 'a sequence -> 'a asn
-  | Set       : 'a sequence -> 'a asn
-  | Choice    : 'a asn * 'b asn -> ('a, 'b) sum asn
+  | Sequence    : 'a sequence -> 'a asn
+  | Sequence_of : 'a asn -> 'a list asn
+  | Set         : 'a sequence -> 'a asn
+  | Set_of      : 'a asn -> 'a list asn
+  | Choice      : 'a asn * 'b asn -> ('a, 'b) sum asn
 
-  | Implicit  : tag * 'a asn -> 'a asn
-  | Explicit  : tag * 'a asn -> 'a asn
+  | Implicit    : tag * 'a asn -> 'a asn
+  | Explicit    : tag * 'a asn -> 'a asn
   
-  | Prim      : 'a prim -> 'a asn
+  | Prim        : 'a prim -> 'a asn
 
 and _ element =
-  | Element   : 'a asn -> 'a element
-(*
-This will include 'Required' and 'Optional' tags,
-but for now I will assume all are required,
-so the contructor is simplified
-*)
+  | Required : string option * 'a asn -> 'a element
+  | Optional : string option * 'a asn -> 'a option element
 
 and _ sequence = 
   | Last  : 'a element -> 'a sequence
@@ -65,13 +63,14 @@ and _ sequence =
 
 and _ prim = 
   | Bool       : bool       prim
-  | Int        : int64      prim
+  | Int        : Z.t        prim
   | Bits       : bool array prim
   | Octets     : bytes      prim
   | Null       : unit       prim
   | OID        : Asn_oid.t  prim
   | Real       : float      prim
   | CharString : string     prim
+  | Time       : string     prim
 
 type error = [ `Parse of string ]
 
@@ -91,6 +90,12 @@ module Generic = struct
     | Prim (t, _) -> t
 end
 
+let label = function
+  | Some s -> s
+  | None   -> ""
+let seq_tag = Tag.Universal 0x10
+and set_tag = Tag.Universal 0x11
+
 let tag_of_prim : type a. a prim -> tag = 
   let open Tag in function 
     | Bool       -> Universal 0x01
@@ -101,3 +106,16 @@ let tag_of_prim : type a. a prim -> tag =
     | OID        -> Universal 0x06
     | Real       -> Universal 0x09
     | CharString -> Universal 0x1D
+    | Time       -> Universal 0x0E
+
+let rec tag_set : type a. a asn -> tag list = function
+  | Sequence _          -> [seq_tag]
+  | Sequence_of _       -> [seq_tag]
+  | Set _               -> [set_tag]
+  | Set_of _            -> [set_tag]
+  | Choice (asn1, asn2) -> (tag_set asn1) @ (tag_set asn2)
+
+  | Implicit (t, _)     -> [t]
+  | Explicit (t, _)     -> [t]
+
+  | Prim p              -> [tag_of_prim p]

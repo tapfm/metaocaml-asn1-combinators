@@ -17,6 +17,13 @@ let to_tag id = function
   | None              -> Tag.Context_specific id
 
 
+let explicit ?cls id asn = Explicit (to_tag id cls, asn)
+
+let rec implicit : type a. ?cls:cls -> int -> a asn -> a asn = 
+  fun ?cls id -> function
+    | Choice (_, _) as asn -> explicit ?cls id asn
+    | asn                  -> Implicit (to_tag id cls, asn)
+
 let rec implicit : type a. ?cls:cls -> int -> a asn -> a asn =
   fun ?cls id -> function 
     | asn -> Implicit (to_tag id cls, asn)
@@ -28,7 +35,9 @@ and octet_string     = Prim Octets
 and bit_string       = Prim Bits
 and null             = Prim Null
 and real             = Prim Real
+and oid              = Prim OID
 and character_string = Prim CharString
+and time_val         = Prim Time
 
 let string tag = implicit ~cls:`Universal tag character_string
 
@@ -44,13 +53,23 @@ and general_string   = string 0x1C
 and universal_string = string 0x1C
 and bmp_string       = string 0x1E
 
+let time tag = implicit ~cls:`Universal tag time_val
+
+let utc_time         = time 0x17 
+and generalized_time = time 0x18
+
 let single a = Last a
 and ( @ ) a b = Pair (a, b)
 and (-@ ) a b = Pair (a, Last b)
-and element a = Element (a)
+and optional ?label a = Optional(label, a)
+and required ?label a = Required(label, a)
 
 let sequence seq = Sequence seq
 
+let sequence_of asn = Sequence_of asn
+
 let set seq = Set seq
+
+let set_of asn = Set_of asn
 
 let choice a b = Choice(a, b)

@@ -22,3 +22,4 @@ lib:
 
 test-native:
 	$(OCB) tests/test.native
+	$(OCB) tests/x509.native
