@@ -30,15 +30,15 @@ let parse_err = Alcotest.testable Asn_core.pp_error (fun (`Parse _) (`Parse _) -
 (* The actual tests *)
 let encode_booleans () = 
   let bool_asn   = Asn.S.bool in 
-  let bool_codec = Asn.codec Asn.ber bool_asn in
-  let encoder    = Asn.encode bool_codec in
+  let bool_codec = Asn.Unstaged.codec Asn.Unstaged.ber bool_asn in
+  let encoder    = Asn.Unstaged.encode bool_codec in
   Alcotest.(check bytes) "true  =encodes=to=> 0x0101FF" (to_bytes [0x01; 0x01; 0xFF]) (encoder true);
   Alcotest.(check bytes) "false =encodes=to=> 0x010100" (to_bytes [0x01; 0x01; 0x00]) (encoder false)
 
 let decode_booleans () = 
   let bool_asn   = Asn.S.bool in 
-  let bool_codec = Asn.codec Asn.ber bool_asn in
-  let decoder    = Asn.decode bool_codec in
+  let bool_codec = Asn.Unstaged.codec Asn.Unstaged.ber bool_asn in
+  let decoder    = Asn.Unstaged.decode bool_codec in
   Alcotest.(check (result (pair bool bytes) parse_err))
     "0x0101FF =decodes=to=> true"
     (Ok(true, Bytes.empty)) 
@@ -54,9 +54,9 @@ let decode_booleans () =
 
 let circular_booleans () = 
   let bool_asn   = Asn.S.bool in 
-  let bool_codec = Asn.codec Asn.ber bool_asn in
-  let encoder    = Asn.encode bool_codec in
-  let decoder    = Asn.decode bool_codec in
+  let bool_codec = Asn.Unstaged.codec Asn.Unstaged.ber bool_asn in
+  let encoder    = Asn.Unstaged.encode bool_codec in
+  let decoder    = Asn.Unstaged.decode bool_codec in
   Alcotest.(check (result (pair bool bytes) parse_err)) 
     "true  ==> true" 
     (Ok(true, Bytes.empty))
@@ -69,8 +69,8 @@ let circular_booleans () =
 (* Currently all integers are encoded as int64 values, so all will have a length of 8*)
 let encode_integers () = 
   let int_asn   = Asn.S.integer in
-  let int_codec = Asn.codec Asn.ber int_asn in
-  let encoder   = Asn.encode int_codec in
+  let int_codec = Asn.Unstaged.codec Asn.Unstaged.ber int_asn in
+  let encoder   = Asn.Unstaged.encode int_codec in
   Alcotest.(check bytes)
     "0 =encodes=to=> 0x02_01_00"
     (to_bytes [0x02; 0x01; 0x00])
@@ -89,8 +89,8 @@ let z_testable = Alcotest.testable (fun ppf _ -> Fmt.pf ppf "*shrug*") (Z.equal)
 
 let decode_integers () = 
   let int_asn   = Asn.S.integer in 
-  let int_codec = Asn.codec Asn.ber int_asn in
-  let decoder   = Asn.decode int_codec in
+  let int_codec = Asn.Unstaged.codec Asn.Unstaged.ber int_asn in
+  let decoder   = Asn.Unstaged.decode int_codec in
   Alcotest.(check (result (pair z_testable bytes) parse_err))
     "0x010100 =decodes=to=> 0"
     (Ok( (Z.zero), Bytes.empty)) 
@@ -110,9 +110,9 @@ let z_gen = QCheck.Gen.(map Z.of_int int)
 let z_qcheck = QCheck.make z_gen ~print:Z.to_string
 let random_ints =
   let int_asn   = Asn.S.integer in
-  let int_codec = Asn.codec Asn.ber int_asn in
-  let encoder   = Asn.encode int_codec in
-  let decoder   = Asn.decode int_codec in
+  let int_codec = Asn.Unstaged.codec Asn.Unstaged.ber int_asn in
+  let encoder   = Asn.Unstaged.encode int_codec in
+  let decoder   = Asn.Unstaged.decode int_codec in
   QCheck.Test.make ~count: 1000
     ~name:"Circular Random Integers"
     QCheck.(z_qcheck) 
@@ -120,8 +120,8 @@ let random_ints =
 
 let encode_bits () = 
   let bit_asn   = Asn.S.bit_string in 
-  let bit_codec = Asn.codec Asn.ber bit_asn in 
-  let encoder   = Asn.encode bit_codec in 
+  let bit_codec = Asn.Unstaged.codec Asn.Unstaged.ber bit_asn in 
+  let encoder   = Asn.Unstaged.encode bit_codec in 
   Alcotest.(check bytes) "\"\" =encodes=to=> 0x0301_00"
     (to_bytes [0x03; 0x01; 0x00])
     (encoder [||]);
@@ -143,8 +143,8 @@ let encode_bits () =
 
 let decode_bits () = 
   let bit_asn   = Asn.S.bit_string in 
-  let bit_codec = Asn.codec Asn.ber bit_asn in 
-  let decoder   = Asn.decode bit_codec in 
+  let bit_codec = Asn.Unstaged.codec Asn.Unstaged.ber bit_asn in 
+  let decoder   = Asn.Unstaged.decode bit_codec in 
   Alcotest.(check (result (pair (array bool) bytes) parse_err))
     "0x0301_08 =decodes=to=> \"\""
     (Ok([||], Bytes.empty))
@@ -164,9 +164,9 @@ let decode_bits () =
 
 let random_bits =
   let bit_asn   = Asn.S.bit_string in 
-  let bit_codec = Asn.codec Asn.ber bit_asn in 
-  let encoder   = Asn.encode bit_codec in
-  let decoder   = Asn.decode bit_codec in
+  let bit_codec = Asn.Unstaged.codec Asn.Unstaged.ber bit_asn in 
+  let encoder   = Asn.Unstaged.encode bit_codec in
+  let decoder   = Asn.Unstaged.decode bit_codec in
   QCheck.Test.make ~count: 1000
     ~name:"Circular Random Bit Strings"
     QCheck.(array bool) 
@@ -176,8 +176,8 @@ let random_bits =
 (* encode_octets and decode_octets are for simpler / shorter test -> more complicated one will be covered in the circular tests*)
 let encode_octets () = 
   let octet_asn   = Asn.S.octet_string in
-  let octet_codec = Asn.codec Asn.ber octet_asn in 
-  let encoder     = Asn.encode octet_codec in 
+  let octet_codec = Asn.Unstaged.codec Asn.Unstaged.ber octet_asn in 
+  let encoder     = Asn.Unstaged.encode octet_codec in 
   Alcotest.(check bytes) "\"\" =encodes=to=> 0x0401_01" (to_bytes [0x04; 0x00]) (encoder Bytes.empty);
   Alcotest.(check bytes) "0x01 =encodes=to=> 0x0401_01" (to_bytes [0x04; 0x01; 0x01]) (encoder (to_bytes [0x01]));
   let bytes_127 = Bytes.make 127 'a' in 
@@ -191,8 +191,8 @@ let encode_octets () =
 
 let decode_octets () = 
   let octet_asn   = Asn.S.octet_string in
-  let octet_codec = Asn.codec Asn.ber octet_asn in 
-  let decoder     = Asn.decode octet_codec in 
+  let octet_codec = Asn.Unstaged.codec Asn.Unstaged.ber octet_asn in 
+  let decoder     = Asn.Unstaged.decode octet_codec in 
   Alcotest.(check (result (pair bytes bytes) parse_err)) 
     "0x0400 =decodes=to=> \"\"" 
     (Ok(Bytes.empty, Bytes.empty))
@@ -214,9 +214,9 @@ let decode_octets () =
   
 let random_octets =
   let octet_asn   = Asn.S.octet_string in
-  let octet_codec = Asn.codec Asn.ber octet_asn in 
-  let encoder     = Asn.encode octet_codec in 
-  let decoder     = Asn.decode octet_codec in 
+  let octet_codec = Asn.Unstaged.codec Asn.Unstaged.ber octet_asn in 
+  let encoder     = Asn.Unstaged.encode octet_codec in 
+  let decoder     = Asn.Unstaged.decode octet_codec in 
   QCheck.Test.make ~count: 1000
     ~name:"Circular Random Octets"
     QCheck.(string) 
@@ -224,14 +224,14 @@ let random_octets =
 
 let encode_null () = 
   let null_asn = Asn.S.null in
-  let null_codec = Asn.codec Asn.ber null_asn in
-  let encoder    = Asn.encode null_codec in
+  let null_codec = Asn.Unstaged.codec Asn.Unstaged.ber null_asn in
+  let encoder    = Asn.Unstaged.encode null_codec in
   Alcotest.(check bytes) "unit =encodes=to=> 0x0500" (to_bytes [0x05; 0x00]) (encoder ())
 
 let decode_null () = 
   let null_asn = Asn.S.null in
-  let null_codec = Asn.codec Asn.ber null_asn in
-  let decoder    = Asn.decode null_codec in
+  let null_codec = Asn.Unstaged.codec Asn.Unstaged.ber null_asn in
+  let decoder    = Asn.Unstaged.decode null_codec in
   Alcotest.(check (result (pair unit bytes) parse_err))
     "0x0500 =decodes=to=> unit"
     (Ok((), Bytes.empty))
@@ -239,9 +239,9 @@ let decode_null () =
 
 let circular_null () = 
   let null_asn   = Asn.S.null in
-  let null_codec = Asn.codec Asn.ber null_asn in
-  let encoder    = Asn.encode null_codec in
-  let decoder    = Asn.decode null_codec in
+  let null_codec = Asn.Unstaged.codec Asn.Unstaged.ber null_asn in
+  let encoder    = Asn.Unstaged.encode null_codec in
+  let decoder    = Asn.Unstaged.decode null_codec in
   Alcotest.(check (result (pair unit bytes) parse_err))
     "unit ==> unit"
     (Ok((), Bytes.empty))
@@ -249,8 +249,8 @@ let circular_null () =
 
 
 let encode_strings (string_asn, id) () = 
-  let string_codec = Asn.codec Asn.ber string_asn in 
-  let encoder      = Asn.encode string_codec in 
+  let string_codec = Asn.Unstaged.codec Asn.Unstaged.ber string_asn in 
+  let encoder      = Asn.Unstaged.encode string_codec in 
   Alcotest.(check bytes) "\"\" =encodes=to=> id ^ 0x00" (to_bytes [id; 0x00]) (encoder "");
   Alcotest.(check bytes) "0x41 =encodes=to=> id ^ 0x01_41" (to_bytes [id; 0x01; 0x41]) (encoder "A" );
   let string_127 = Bytes.make 127 'a' in 
@@ -263,8 +263,8 @@ let encode_strings (string_asn, id) () =
     (encoder (Bytes.to_string string_128))
 
 let decode_strings (string_asn, id) () =
-  let string_codec = Asn.codec Asn.ber string_asn in 
-  let decoder      = Asn.decode string_codec in 
+  let string_codec = Asn.Unstaged.codec Asn.Unstaged.ber string_asn in 
+  let decoder      = Asn.Unstaged.decode string_codec in 
   Alcotest.(check (result (pair string bytes) parse_err)) 
     "id ^ 0x00 =decodes=to=> \"\"" 
     (Ok("", Bytes.empty))
@@ -285,9 +285,9 @@ let decode_strings (string_asn, id) () =
     (decoder (Bytes.cat (to_bytes [id; 0x81; 0x80]) bytes_128) )
 
 let random_strings string_asn = 
-  let string_codec = Asn.codec Asn.ber string_asn in 
-  let encoder      = Asn.encode string_codec in 
-  let decoder      = Asn.decode string_codec in 
+  let string_codec = Asn.Unstaged.codec Asn.Unstaged.ber string_asn in 
+  let encoder      = Asn.Unstaged.encode string_codec in 
+  let decoder      = Asn.Unstaged.decode string_codec in 
   QCheck.Test.make ~count: 1000
     ~name:"Circular Random Strings"
     QCheck.(string) 
@@ -296,8 +296,8 @@ let random_strings string_asn =
 (*mostly edge cases atm*)
 let encode_reals () = 
   let real_asn   = Asn.S.real in
-  let real_codec = Asn.codec Asn.ber real_asn in 
-  let encoder    = Asn.encode real_codec in 
+  let real_codec = Asn.Unstaged.codec Asn.Unstaged.ber real_asn in 
+  let encoder    = Asn.Unstaged.encode real_codec in 
   Alcotest.(check bytes)
   "0. =encodes=to=> 0x0900"
   (to_bytes [0x09; 0x00])
@@ -321,8 +321,8 @@ let encode_reals () =
 
 let decode_reals () = 
   let real_asn   = Asn.S.real in
-  let real_codec = Asn.codec Asn.ber real_asn in 
-  let decoder    = Asn.decode real_codec in 
+  let real_codec = Asn.Unstaged.codec Asn.Unstaged.ber real_asn in 
+  let decoder    = Asn.Unstaged.decode real_codec in 
   Alcotest.(check (result (pair (float 0.0001) bytes) parse_err))
   "0x0900 =decodes=to=> 0."
   (Ok(0., Bytes.empty))
@@ -343,7 +343,7 @@ let decode_reals () =
   "0x900143 =decodes=to=> neg zero"
   (Ok(Float.(neg zero), Bytes.empty))
   (decoder (to_bytes [0x09; 0x01; 0x43]));
-  let encoder = Asn.encode real_codec in 
+  let encoder = Asn.Unstaged.encode real_codec in 
   let v       = Float.(one) in 
   Alcotest.(check (result (pair (float 0.0001) bytes) parse_err))
   "0x900143 =decodes=to=> neg zero"
@@ -353,9 +353,9 @@ let decode_reals () =
 
 let random_reals = 
   let real_asn   = Asn.S.real in
-  let real_codec = Asn.codec Asn.ber real_asn in 
-  let encoder    = Asn.encode real_codec in 
-  let decoder    = Asn.decode real_codec in 
+  let real_codec = Asn.Unstaged.codec Asn.Unstaged.ber real_asn in 
+  let encoder    = Asn.Unstaged.encode real_codec in 
+  let decoder    = Asn.Unstaged.decode real_codec in 
   QCheck.Test.make ~count: 1000
     ~name:"Circular Random Reals"
     QCheck.(float) 

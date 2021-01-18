@@ -13,10 +13,16 @@ clean:
 lib:
 	$(OCB) src/asn_oid.cmx
 	$(OCB) src/asn_core.cmx
-	$(OCB) src/asn_prim.cmx
 	$(OCB) src/asn_combinators.cmx
-	$(OCB) src/asn_reader.cmx
-	$(OCB) src/asn_writer.cmx
+	$(OCB) src/unstaged/asn_unstaged_core.cmx
+	$(OCB) src/unstaged/asn_unstaged_prim.cmx
+	$(OCB) src/unstaged/asn_unstaged_reader.cmx
+	$(OCB) src/unstaged/asn_unstaged_writer.cmx
+	$(OCB) src/unstaged/asn_unstaged.cmx
+	$(OCB) src/staged/asn_staged_core.cmx
+	$(OCB) src/staged/asn_staged_prim.cmx
+	$(OCB) src/staged/asn_staged_reader.cmx
+	$(OCB) src/staged/asn_staged.cmx
 	$(OCB) src/asn.cmx
 	$(OCB) src/asn.cmxa
 

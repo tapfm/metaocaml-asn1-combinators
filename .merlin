@@ -1,4 +1,6 @@
 S src
+S src/unstaged
+S src/staged
 S tests
 
 PKG alcotest
@@ -7,4 +9,6 @@ PKG qcheck-alcotest
 PKG zarith
 
 B _build/src
+B _build/src/unstaged
+B _build/src/staged
 B _build/tests

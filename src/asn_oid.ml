@@ -68,8 +68,3 @@ let compare (Oid (v1, v2, vs)) (Oid (v1', v2', vs')) =
     | r -> r
 
 let equal o1 o2 = compare o1 o2 = 0
-
-let seeded_hash seed (Oid (v1, v2, vs)) = 
-  Hashtbl.(List.fold_left seeded_hash (seeded_hash (seeded_hash seed v1) v2) vs)
-
-let hash o = seeded_hash 0 o

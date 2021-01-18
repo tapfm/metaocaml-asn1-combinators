@@ -23,8 +23,6 @@ module OID : sig
 
   val equal : t -> t -> bool
   val compare : t -> t -> int
-  val hash : t -> int
-  val seeded_hash : int -> t -> int
 
   val base : int -> int -> t
 
@@ -115,21 +113,39 @@ module S : sig
 
 end
 
+module Unstaged : sig
+  type encoding
 
-type encoding
+  val ber : encoding
 
-val ber : encoding
-
-val der : encoding
+  val der : encoding
 
 
-type 'a codec
+  type 'a codec
 
-val codec : encoding -> 'a t -> 'a codec
+  val codec : encoding -> 'a t -> 'a codec
 
-val encode : 'a codec -> 'a -> bytes
+  val encode : 'a codec -> 'a -> bytes
 
-type error = [ `Parse of string ]
+  type error = [ `Parse of string ]
 
-val decode : 'a codec -> bytes -> ('a * bytes, error) result
+  val decode : 'a codec -> bytes -> ('a * bytes, error) result
+end
 
+module Staged : sig
+  type encoding
+
+  val ber : encoding
+
+  val der : encoding
+
+  type 'a codec
+
+  val codec : encoding -> 'a t -> 'a codec
+
+  val encode : 'a codec -> 'a -> bytes
+
+  type error = [ `Parse of string ]
+
+  val decode : 'a codec -> bytes -> ('a * bytes, error) result
+end

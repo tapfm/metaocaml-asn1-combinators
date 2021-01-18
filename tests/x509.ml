@@ -103,8 +103,11 @@ let certificate =
     (required ~label:"signatureAlgorithm" algorithmIdentifier) -@
     (required ~label:"signatureValue"     bit_string))
 
-let cert_ber, cert_der =
-  (codec ber certificate, codec der certificate)
+let cert_ber_unstaged, cert_der_unstaged =
+  (Unstaged.codec Unstaged.ber certificate, Unstaged.codec Unstaged.der certificate)
+
+let cert_ber_staged, cert_der_staged =
+  (Staged.codec Staged.ber certificate, Staged.codec Staged.der certificate)
 
 
 let examples = [
@@ -249,15 +252,24 @@ let x s =
       | exception End_of_file -> Buffer.contents buf in 
   go (Buffer.create 17) (Scanf.Scanning.from_string s)
 
-let accepts_x509 ex () =
-  let decoder = Asn.decode cert_ber in 
-  match decoder (Bytes.of_string (x ex)) with 
+let unstaged_accepts ex () =
+  let decoder_unstaged = Asn.Unstaged.decode cert_ber_unstaged in 
+  match decoder_unstaged (Bytes.of_string (x ex)) with 
+    | Ok (_, tl) -> Alcotest.(check bytes) "No remainder" Bytes.empty tl
+    | Error _    -> Alcotest.fail "Remainder present"
+
+let staged_accepts ex () =
+  let decoder_unstaged = Asn.Staged.decode cert_ber_staged in 
+  match decoder_unstaged (Bytes.of_string (x ex)) with 
     | Ok (_, tl) -> Alcotest.(check bytes) "No remainder" Bytes.empty tl
     | Error _    -> Alcotest.fail "Remainder present"
 
 let () =
   Alcotest.run "Accepts x509" [
-    ("Decoding x509", 
-    List.map (fun a -> Alcotest.test_case "Testing example" `Quick (accepts_x509 a)) examples
+    ("Unstaged Decoder", 
+    List.mapi (fun i a -> Alcotest.test_case "Testing Example" `Quick (unstaged_accepts a)) examples
+    );
+    ("Staged Decoder", 
+    List.mapi (fun i a -> Alcotest.test_case "Testing Example" `Quick (staged_accepts a)) examples
     )
   ]

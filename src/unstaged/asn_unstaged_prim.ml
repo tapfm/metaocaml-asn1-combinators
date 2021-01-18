@@ -1,4 +1,4 @@
-open Asn_core
+open Asn_unstaged_core
 
 module type Prim = sig
   type t

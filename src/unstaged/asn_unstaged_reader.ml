@@ -1,9 +1,10 @@
+open Asn_unstaged_core
 open Asn_core
 
 (* name 'inherited' from asn1-combinators --> should change to something more descriptive e.g. Generic_tag *)
 module G = Generic
 
-module Prim = Asn_prim
+module Prim = Asn_unstaged_prim
 
 (* Again legacy from asn1-combinators --> could be changed to Rules *)
 (* Previous code only was designed for Ber and Der, so a boolean was sufficient,

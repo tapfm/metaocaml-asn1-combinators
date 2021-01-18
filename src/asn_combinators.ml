@@ -1,5 +1,4 @@
 open Asn_core
-(*module Prim  = Asn_prim*)
 
 
 module Int = struct
@@ -23,10 +22,6 @@ let rec implicit : type a. ?cls:cls -> int -> a asn -> a asn =
   fun ?cls id -> function
     | Choice (_, _) as asn -> explicit ?cls id asn
     | asn                  -> Implicit (to_tag id cls, asn)
-
-let rec implicit : type a. ?cls:cls -> int -> a asn -> a asn =
-  fun ?cls id -> function 
-    | asn -> Implicit (to_tag id cls, asn)
 
 
 let bool             = Prim Bool

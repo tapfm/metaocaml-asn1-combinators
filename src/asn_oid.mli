@@ -2,8 +2,6 @@ type t = private Oid of int * int * int list
 
 val compare     : t -> t -> int
 val equal       : t -> t -> bool
-val hash        : t -> int
-val seeded_hash : int -> t -> int
 
 val base        : int -> int -> t
 val base_opt    : int -> int -> t option

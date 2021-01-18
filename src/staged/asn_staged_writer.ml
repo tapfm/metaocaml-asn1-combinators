@@ -1,6 +1,7 @@
+open Asn_staged_core
 open Asn_core
 
-module Prim = Asn_prim
+module Prim = Asn_staged_prim
 
 (* Type for whether the encoded value is primitive or constructed *)
 type mode = Constructed | Primitive

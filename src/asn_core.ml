@@ -37,10 +37,6 @@ end
 
 type tag = Tag.t
 
-(* Adapted from the existing asn1-combinators library *)
-(* length * (offset -> bytes -> unit)*)
-type writer = int * (int -> bytes -> unit)
-
 type _ asn = 
   | Sequence    : 'a sequence -> 'a asn
   | Sequence_of : 'a asn -> 'a list asn
