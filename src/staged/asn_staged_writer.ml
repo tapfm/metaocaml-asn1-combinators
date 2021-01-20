@@ -6,8 +6,6 @@ module Prim = Asn_staged_prim
 (* Type for whether the encoded value is primitive or constructed *)
 type mode = Constructed | Primitive
 
-type config = Ber | Der (* | Cer | ... *)
-
 (* A simple operator to combine 2 Writer.t values*)
 let (<+>) : writer -> writer -> writer =
   fun (len_1, writer_1) (len_2, writer_2) ->

@@ -158,11 +158,11 @@ let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun cfg tag -> functi
   | CharString -> string_like cfg tag (module Prim.Gen_string)
   | Time       -> primitive tag Prim.Time.of_bytes
 
-  let peek asn = 
-    match tag_set asn with 
-    | [tag] -> fun g -> Tag.equal (G.tag g) tag
-    | tags  -> fun g -> let tag = G.tag g in 
-        List.exists (fun t -> Tag.equal t tag) tags
+let peek asn = 
+  match tag_set asn with 
+  | [tag] -> fun g -> Tag.equal (G.tag g) tag
+  | tags  -> fun g -> let tag = G.tag g in 
+      List.exists (fun t -> Tag.equal t tag) tags
 
 let rec c_asn : type a. a asn -> config -> G.t -> a = fun asn cfg ->
   let rec go : type a. ?t:tag -> a asn -> G.t -> a = fun ?t -> function
@@ -175,13 +175,13 @@ let rec c_asn : type a. a asn -> config -> G.t -> a = fun asn cfg ->
     fun g -> if accepts g then L ((c_asn a1 cfg) g) else R ((c_asn a2 cfg) g)
   | Implicit (t0, a) -> go ~t:(t @? t0) a
   | Explicit (t0, a) -> constructed (t @? t0) (c_explicit a cfg)
-  | Prim p           -> c_prim cfg (match t with | Some x -> x | None -> tag_of_prim p) p in
+  | Prim p           -> c_prim cfg (t @? tag_of_prim p) p in
 
   go asn
 
 and c_explicit : type a. a asn -> config -> G.t list -> a = fun a cfg ->
-  let p = c_asn a cfg in function 
-  | [g] -> p g
+  function 
+  | [g] -> (c_asn a cfg) g
   | gs  -> failwith "Parse Error: Explicit tag with a sequence"
 
 and c_seq : type a. a sequence -> config -> G.t list -> a = fun s cfg->

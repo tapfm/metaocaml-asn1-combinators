@@ -7,6 +7,9 @@ PKG alcotest
 PKG qcheck
 PKG qcheck-alcotest
 PKG zarith
+PKG trx
+
+EXT meta
 
 B _build/src
 B _build/src/unstaged

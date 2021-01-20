@@ -2,7 +2,7 @@ open Asn_staged_core
 
 module type Prim = sig
   type t
-  val of_bytes  : bytes -> t
+  val of_bytes  : (bytes -> t) code
 
   val to_writer : t -> writer
 
@@ -40,12 +40,13 @@ end
 module Boolean : Prim with type t = bool = struct
   type t = bool
 
-  let of_bytes bs = 
+  let of_bytes = .<fun bs ->
     if Bytes.length bs = 1 then
       let r = Bytes.get_uint8 bs 0 in
       r <> 0
     else 
       failwith "Boolean must have a length of 1 octet"
+  >.
 
   let to_writer b = 
     let encoded = if b then 0xFF else 0x00 in
@@ -56,10 +57,7 @@ module Integer : Prim with type t = Z.t = struct
   (* This should be changed to a type that can handle "primitive" integers and big integers *)
   type t = Z.t
 
-  let of_int8  x = Z.of_int (if x >= 0x80   then x - 0x100   else x)
-  let of_int16 x = Z.of_int (if x >= 0x8000 then x - 0x10000 else x)
-
-  let of_bytes bs = 
+  let of_bytes = .< fun bs ->
     let rec go acc i = function 
       | n when n >= 8 ->
         let w = Z.of_int64 (Bytes.get_int64_be bs i) in 
@@ -90,6 +88,7 @@ module Integer : Prim with type t = Z.t = struct
         | 0 -> failwith "Integer Error: Length = 0"
         | 1 -> Z.of_int   (Bytes.get_int8     bs 0)
         | n -> assert false
+  >.
 
   let last8 z = Z.(extract z 0 8 |> to_int)
 
@@ -122,12 +121,13 @@ module Bits : Prim_s with type t = bool array = struct
   
   type t = bool array
 
-  let of_bytes bs =
+  let of_bytes = .< fun bs ->
     assert (Bytes.length bs >= 1);
     let unused = Bytes.get_uint8 bs 0 in 
     let lbody  = Bytes.length bs - 1 in 
     let num_bits = 8 * lbody - unused in 
     Array.init num_bits (fun i -> let byte = (Bytes.get_uint8 bs (1 + (i / 8))) lsl (i mod 8) in byte land 0x80 = 0x80 )
+  >.
 
   let (|<) n = function 
     | true  -> (n lsl 1) lor 1
@@ -163,7 +163,7 @@ module Octets : Prim_s with type t = bytes = struct
   
   type t = bytes
 
-  let of_bytes bs = bs
+  let of_bytes = .<fun bs -> bs>.
 
   let to_writer os = 
     let len = Bytes.length os in
@@ -177,11 +177,12 @@ end
 module Null : Prim with type t = unit = struct
   type t = unit
 
-  let of_bytes b =
+  let of_bytes = .< fun b ->
     if Bytes.length b = 0 then
       ()
     else
       failwith "Null must be encoded with a length of 0"
+  >.
 
   let to_writer () =
     (0, fun (off : int) (bs : bytes) -> ())
@@ -192,7 +193,7 @@ module Real : Prim with type t = float = struct
   
   type t = float
 
-  let decode_binary bs = 
+  let decode_binary = .< fun bs ->
     let b0   = Bytes.get_uint8 bs 0 in
     let sign = if (b0 land 0x40) = 0x40 then Float.minus_one else Float.one in 
     let base = (match (b0 land 0x30) with
@@ -217,15 +218,16 @@ module Real : Prim with type t = float = struct
                                 | _    -> assert false) in
     let mant = Int64.to_float (read_n_bytes (1 + expn_length) bs 0L ((Bytes.length bs) - (expn_length + 1))) in
     (sign *. mant *. fact) *. (Float.pow base expn)
+  >.
 
 
-  let of_bytes bs = 
+  let of_bytes = .<fun bs ->
     if Bytes.length bs = 0 then
       Float.zero
     else 
       let b0 = Bytes.get_uint8 bs 0 in 
       match (b0 land 0x80) with 
-      | 0x80 -> (*Binary encoding*) decode_binary bs
+      | 0x80 -> (*Binary encoding*) .~(decode_binary) bs
       | 0x00 -> ( match b0 land 0x40 with
         | 0x40 -> (*"Special Real value"*)
                   (match b0 with 
@@ -242,6 +244,7 @@ module Real : Prim with type t = float = struct
                     | _           -> failwith "Undefined - Reserved for future definitions")
         | _    -> (*Should be impossible *) assert false )
       | _    -> (*Should be impossible *) assert false
+  >.
 
   let rec mant_to_int64 (acc, len) f = match Float.classify_float f with
     | FP_zero      -> (acc, len - 1)
@@ -276,7 +279,7 @@ end
 module Gen_string : Prim_s with type t = string = struct
   type t = string
 
-  let of_bytes = Bytes.to_string
+  let of_bytes = .<fun bs -> Bytes.to_string bs>.
 
   let to_writer s = let n = String.length s in (n, fun off bs -> Bytes.blit_string s 0 bs off n)
 
@@ -299,7 +302,7 @@ module OID : Prim with type t = Asn_oid.t = struct
 
   type t = Asn_oid.t
 
-  let chain bs i n = 
+  let chain = .<fun bs i n ->
     let rec go acc bs i = function 
       | 0 -> failwith "OID Error: unterminated component"
       | n -> 
@@ -311,20 +314,22 @@ module OID : Prim with type t = Asn_oid.t = struct
           if b < 0x80 then (Int64.to_int acc, i + 1) else go acc bs (i + 1) (n - 1) in 
     if n < 1 then (failwith "OID Error: 0 length component")
     else go 0L bs i (min n 8)
+  >.
 
-  let of_bytes bs =
+  let of_bytes= .< fun bs ->
     let rec components bs i = function 
       | 0 -> []
-      | n -> let (c, i') = chain bs i n in 
+      | n -> let (c, i') = .~(chain) bs i n in 
              c :: components bs i' (n + i - i') in
     match Bytes.length bs with 
     | 0 -> failwith "OID Error: 0 length"
-    | n -> let (b1, i) = chain bs 0 n in
+    | n -> let (b1, i) = .~(chain) bs 0 n in
            let v1 = (min (b1 / 40) 2) in
            let v2 = b1 - (40 * v1) in 
            match base_opt v1 v2 with 
              | Some b -> b <|| components bs i (n - 1)
              | None   -> failwith "OID Error: Invalid Base"
+  >.
 
 
   let write_uint8_list lst = 
@@ -349,7 +354,7 @@ end
 module Time : Prim with type t = string = struct
   type t = string
 
-  let of_bytes = Bytes.to_string
+  let of_bytes = .<fun bs -> Bytes.to_string bs>.
 
   let to_writer str =
     let len = String.length str in 

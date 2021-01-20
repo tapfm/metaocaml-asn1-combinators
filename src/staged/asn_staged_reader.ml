@@ -6,11 +6,6 @@ module G = Generic
 
 module Prim = Asn_staged_prim
 
-(* Again legacy from asn1-combinators --> could be changed to Rules *)
-(* Previous code only was designed for Ber and Der, so a boolean was sufficient,
-but I am aiming for more coverage, so a variant type should be appropriate*)
-type config = Ber | Der (* | Cer | ... *)
-
 
 (* Coding and length [where appropriate] *)
 type coding = 
@@ -124,13 +119,17 @@ end
 
 let (@?) x_opt y = match x_opt with Some x -> x | None -> y
 
-let primitive t f = function 
-  | G.Prim (t1, bs) when Tag.equal t t1 -> f bs
-  | g -> failwith "Type mismatch parsing primitive"
+let primitive : type a. tag -> (bytes -> a) code -> (G.t -> a) code = 
+  fun t f -> .< function 
+    | Generic.Prim (t1, bs) when Tag.equal t t1 -> .~f bs
+    | g -> failwith "Type mismatch parsing primitive" 
+  >.
 
-let constructed t f = function 
-  | G.Cons (t1, gs) when Tag.equal t t1 -> f gs
-  | g -> failwith "Type mismatch parsing constructed"
+let constructed : type a. tag -> (G.t list -> a) code -> (G.t -> a) code = 
+  fun t f -> .< function 
+    | Generic.Cons (t1, gs) when Tag.equal t t1 -> .~f gs
+    | g -> failwith "Type mismatch parsing constructed"
+  >.
 
 (* 
 String_like types are either encoded as:
@@ -139,15 +138,15 @@ String_like types are either encoded as:
 So more care is needed to decode it
 *)
 let string_like (type a) c t (module P : Prim.Prim_s with type t = a) =
-  let rec p = function
-    | G.Prim (t1, bs) when Tag.equal t t1 -> P.of_bytes bs
-    | G.Cons (t1, gs) when Tag.equal t t1 && c = Ber ->
+  .<let rec p = function
+    | Generic.Prim (t1, bs) when Tag.equal t t1 -> .~(P.of_bytes) bs
+    | Generic.Cons (t1, gs) when Tag.equal t t1 && c = Ber ->
         P.concat (List.map p gs)
-    | g -> failwith "Type mismatch parsing string_like" 
+    | g -> failwith "Type mismatch parsing string_like"
   in
-    p
+    p>.
 
-let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun cfg tag -> function
+let c_prim : type a. config -> tag -> a prim -> (G.t -> a) code = fun cfg tag -> function
   | Bool       -> primitive tag Prim.Boolean.of_bytes
   | Int        -> primitive tag Prim.Integer.of_bytes
   | Bits       -> string_like cfg tag (module Prim.Bits)
@@ -158,53 +157,59 @@ let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun cfg tag -> functi
   | CharString -> string_like cfg tag (module Prim.Gen_string)
   | Time       -> primitive tag Prim.Time.of_bytes
 
-  let peek asn = 
+let peek : 'a asn -> (G.t -> bool) code = fun asn ->
+  
     match tag_set asn with 
-    | [tag] -> fun g -> Tag.equal (G.tag g) tag
-    | tags  -> fun g -> let tag = G.tag g in 
-        List.exists (fun t -> Tag.equal t tag) tags
+      | [tag] -> .<fun g -> Tag.equal (G.tag g) tag>.
+      | tags  -> .<fun g -> let tag = G.tag g in 
+                          List.exists (fun t -> Tag.equal t tag) tags>.
+  
 
-let rec c_asn : type a. a asn -> config -> G.t -> a = fun asn cfg ->
-  let rec go : type a. ?t:tag -> a asn -> G.t -> a = fun ?t -> function
+let rec c_asn : type a. a asn -> config -> (G.t -> a) code = fun asn cfg ->
+  let rec go : type a. ?t:tag -> a asn -> (G.t -> a) code = fun ?t -> function
   | Sequence s       -> constructed (t @? seq_tag) (c_seq s cfg)
-  | Sequence_of a    -> constructed (t @? seq_tag) (List.map (c_asn a cfg))
+  | Sequence_of a    -> constructed (t @? seq_tag) .<(List.map .~(c_asn a cfg))>.
   | Set s            -> constructed (t @? set_tag) (c_set s cfg)
-  | Set_of a         -> constructed (t @? set_tag) (List.map (c_asn a cfg))
+  | Set_of a         -> constructed (t @? set_tag) .<(List.map .~(c_asn a cfg))>.
   | Choice (a1, a2)  -> 
     let accepts = peek a1 in 
-    fun g -> if accepts g then L ((c_asn a1 cfg) g) else R ((c_asn a2 cfg) g)
+    .<fun g -> if .~accepts g then L (.~(c_asn a1 cfg) g) else R (.~(c_asn a2 cfg) g)>.
   | Implicit (t0, a) -> go ~t:(t @? t0) a
   | Explicit (t0, a) -> constructed (t @? t0) (c_explicit a cfg)
-  | Prim p           -> c_prim cfg (match t with | Some x -> x | None -> tag_of_prim p) p in
+  | Prim p           -> c_prim cfg (t @? tag_of_prim p) p in
 
   go asn
 
-and c_explicit : type a. a asn -> config -> G.t list -> a = fun a cfg ->
-  let p = c_asn a cfg in function 
-  | [g] -> p g
-  | gs  -> failwith "Parse Error: Explicit tag with a sequence"
+and c_explicit : type a. a asn -> config -> (G.t list -> a) code = fun a cfg ->
+  .<function 
+  | [g] -> .~(c_asn a cfg) g
+  | gs  -> failwith "Parse Error: Explicit tag with a sequence">.
 
-and c_seq : type a. a sequence -> config -> G.t list -> a = fun s cfg->
-  let rec seq : type a. a sequence -> G.t list -> a = function
-    | Pair (e, s) ->
-        let (p1, p2) = (element e, c_seq s cfg) in 
-        fun gs -> let (r, gs') = p1 gs in (r, p2 gs')
-    | Last e ->
-        let p = element e in fun gs ->
-          match p gs with (a, []) -> a | (_, gs) -> failwith "Parse error: Trailing asn in sequence"
-  and element : type a. a element -> G.t list -> a * G.t list = function 
+and c_seq : type a. a sequence -> config -> (G.t list -> a) code = fun s cfg->
+  let rec seq : type a. a sequence -> (G.t list -> a) code = function
+    | Pair (e, s) -> let (p1, p2) = (element e, c_seq s cfg) in 
+                     .<fun gs -> let (r, gs') = .~p1 gs in (r, .~p2 gs')>.
+    | Last e -> let p = element e in 
+                .<fun gs -> match .~p gs with 
+                            | (a, []) -> a 
+                            | (_, gs) -> failwith "Parse error: Trailing asn in sequence">.
+  and element : type a. a element -> (G.t list -> a * G.t list) code = function 
     | Required (lbl, a) ->
-      let p = c_asn a cfg in (function 
-        | g::gs -> (p g, gs)
-        | []    -> failwith ("Parse error: Sequence missing trailing " ^ (label lbl)))
+      let p = c_asn a cfg in 
+      .<function 
+        | g::gs -> (.~p g, gs)
+        | []    -> failwith ("Parse error: Sequence missing trailing " ^ (label lbl))>.
     | Optional (_, a) ->
       let (p, accepts) = (c_asn a cfg, peek a) in 
-      function | g::gs when accepts g -> (Some (p g), gs)
-               | gs                   -> (None, gs)
+      .<function | g::gs when .~accepts g -> (Some (.~p g), gs)
+                 | gs                     -> (None,         gs)>.
     in seq s
+  
 
-  and c_set : type a. a sequence -> config -> G.t list -> a = fun a b c -> failwith "Unimplemented"
+  and c_set : type a. a sequence -> config -> (G.t list -> a) code = fun a b -> failwith "Unimplemented"
 
 let compile cfg asn = 
-  let p = c_asn asn cfg in
+  let p_code = c_asn asn cfg in
+  (*Codelib.print_code Format.std_formatter p_code;*)
+  let p      = Runnative.run p_code in
   fun bs -> let (g, bs') = Gen.parse cfg bs in (p g, bs')

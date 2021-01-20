@@ -4,7 +4,8 @@
 
 .PHONY: clean lib test-native
 
-OCB_FLAGS = -use-ocamlfind
+OCB_FLAGS = -use-ocamlfind -ocamlc '-toolchain metaocaml ocamlc' \
+						   -ocamlopt '-toolchain metaocaml ocamlopt'
 OCB = ocamlbuild $(OCB_FLAGS)
 
 clean:
