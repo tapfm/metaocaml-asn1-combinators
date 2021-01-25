@@ -119,17 +119,29 @@ end
 
 let (@?) x_opt y = match x_opt with Some x -> x | None -> y
 
+let teq : tag -> (tag -> bool) code = function
+| Asn_core.Tag.Universal x        -> .< function | Universal y -> x = y | _ -> false>.
+| Asn_core.Tag.Application x      -> .< function | Application y -> x = y | _ -> false>.
+| Asn_core.Tag.Context_specific x -> .< function | Context_specific y -> x = y | _ -> false>.
+| Asn_core.Tag.Private x          -> .< function | Private y -> x = y | _ -> false>.
+
+let rec tqs : tag list -> (tag -> bool) code = function 
+| []    -> .<fun _   -> false>.
+| t::ts -> .<fun tag -> if .~(teq t) tag then true else .~(tqs ts) tag>.
+
 let primitive : type a. tag -> (bytes -> a) code -> (G.t -> a) code = 
-  fun t f -> .< function 
-    | Generic.Prim (t1, bs) when Tag.equal t t1 -> .~f bs
-    | g -> failwith "Type mismatch parsing primitive" 
-  >.
+  fun t f -> 
+    .< function 
+      | Generic.Prim (t1, bs) when (.~(teq t) t1) -> .~f bs
+      | g -> failwith "Type mismatch parsing primitive" 
+    >.
 
 let constructed : type a. tag -> (G.t list -> a) code -> (G.t -> a) code = 
-  fun t f -> .< function 
-    | Generic.Cons (t1, gs) when Tag.equal t t1 -> .~f gs
-    | g -> failwith "Type mismatch parsing constructed"
-  >.
+  fun t f ->
+    .< function 
+      | Generic.Cons (t1, gs) when (.~(teq t) t1) -> .~f gs
+      | g -> failwith "Type mismatch parsing constructed"
+    >.
 
 (* 
 String_like types are either encoded as:
@@ -139,9 +151,9 @@ So more care is needed to decode it
 *)
 let string_like (type a) c t (module P : Prim.Prim_s with type t = a) =
   .<let rec p = function
-    | Generic.Prim (t1, bs) when Tag.equal t t1 -> .~(P.of_bytes) bs
-    | Generic.Cons (t1, gs) when Tag.equal t t1 && c = Ber ->
-        P.concat (List.map p gs)
+    | Generic.Prim (t1, bs) when (.~(teq t) t1) -> .~(P.of_bytes) bs
+    | Generic.Cons (t1, gs) when (.~(teq t) t1) && c = Ber ->
+        .~P.concat (List.map p gs)
     | g -> failwith "Type mismatch parsing string_like"
   in
     p>.
@@ -158,11 +170,11 @@ let c_prim : type a. config -> tag -> a prim -> (G.t -> a) code = fun cfg tag ->
   | Time       -> primitive tag Prim.Time.of_bytes
 
 let peek : 'a asn -> (G.t -> bool) code = fun asn ->
-  
     match tag_set asn with 
-      | [tag] -> .<fun g -> Tag.equal (G.tag g) tag>.
-      | tags  -> .<fun g -> let tag = G.tag g in 
-                          List.exists (fun t -> Tag.equal t tag) tags>.
+      | [tag] -> .<fun g -> .~(teq tag) (Generic.tag g) >.
+      | tags  -> (*.<fun g -> let tag = Generic.tag g in 
+                          List.exists (fun t -> Asn_core.Tag.equal t tag) tags>.*)
+                .<fun g -> .~(tqs tags) (Generic.tag g)>.
   
 
 let rec c_asn : type a. a asn -> config -> (G.t -> a) code = fun asn cfg ->
@@ -194,11 +206,11 @@ and c_seq : type a. a sequence -> config -> (G.t list -> a) code = fun s cfg->
                             | (a, []) -> a 
                             | (_, gs) -> failwith "Parse error: Trailing asn in sequence">.
   and element : type a. a element -> (G.t list -> a * G.t list) code = function 
-    | Required (lbl, a) ->
+    | Required (lbl, a) -> let l = match lbl with | Some s -> s | None -> "" in 
       let p = c_asn a cfg in 
       .<function 
         | g::gs -> (.~p g, gs)
-        | []    -> failwith ("Parse error: Sequence missing trailing " ^ (label lbl))>.
+        | []    -> failwith ("Parse error: Sequence missing trailing " ^ l)>.
     | Optional (_, a) ->
       let (p, accepts) = (c_asn a cfg, peek a) in 
       .<function | g::gs when .~accepts g -> (Some (.~p g), gs)
@@ -208,8 +220,22 @@ and c_seq : type a. a sequence -> config -> (G.t list -> a) code = fun s cfg->
 
   and c_set : type a. a sequence -> config -> (G.t list -> a) code = fun a b -> failwith "Unimplemented"
 
+let stage name cfg asn = 
+  (*Due to metaocaml issues I am having to write the decoder as a special file, which is then decoded later*)
+  let decoder_code = c_asn asn cfg in
+  let out_channel  = open_out name in 
+  let formatter    = Format.formatter_of_out_channel out_channel in
+  Printf.fprintf out_channel "let decode bs =\n  let f = \n";
+  Codelib.(format_code formatter (close_code decoder_code));
+  (*For some reason when printing to a file, format_code is leaving off the last case, so I am manually adding it*)
+  Printf.fprintf out_channel " g_581 -> Stdlib.failwith \"Type mismatch parsing constructed\" in\n";
+  Printf.fprintf out_channel "let (g, b) = Asn_staged_reader.Gen.parse Asn_staged_core.Ber bs in\nOk(f g, b)\n";
+  close_out out_channel
+
+(*This doesn't work, due to issues with where MetaOCaml looks for definitions*)
 let compile cfg asn = 
-  let p_code = c_asn asn cfg in
-  (*Codelib.print_code Format.std_formatter p_code;*)
-  let p      = Runnative.run p_code in
-  fun bs -> let (g, bs') = Gen.parse cfg bs in (p g, bs')
+  let decoder_code = c_asn asn cfg in 
+  fun bs -> 
+    let (g, bs') = Gen.parse cfg bs in
+    let p = Runnative.run decoder_code in 
+    (p g, bs')

@@ -1,32 +1,34 @@
 #
-# Based on https://raw.githubusercontent.com/ocaml/ocamlbuild/master/examples/04-library/Makefile
+# Based on: https://raw.githubusercontent.com/ocaml/ocamlbuild/master/examples/04-library/Makefile
+# and:      https://raw.githubusercontent.com/yallop/ocaml-asp/master/Makefile
 #
 
-.PHONY: clean lib test-native
+.PHONY: all clean lib test-native test foo bar
 
-OCB_FLAGS = -use-ocamlfind -ocamlc '-toolchain metaocaml ocamlc' \
-						   -ocamlopt '-toolchain metaocaml ocamlopt'
-OCB = ocamlbuild $(OCB_FLAGS)
+OCB = ocamlbuild -use-ocamlfind -ocamlc '-toolchain metaocaml ocamlc' \
+						   		-ocamlopt '-toolchain metaocaml ocamlopt'
+
+all : clean lib test-native benchmark foo
 
 clean:
 	$(OCB) -clean
+	rm tmp/*
 
 lib:
-	$(OCB) src/asn_oid.cmx
-	$(OCB) src/asn_core.cmx
-	$(OCB) src/asn_combinators.cmx
-	$(OCB) src/unstaged/asn_unstaged_core.cmx
-	$(OCB) src/unstaged/asn_unstaged_prim.cmx
-	$(OCB) src/unstaged/asn_unstaged_reader.cmx
-	$(OCB) src/unstaged/asn_unstaged_writer.cmx
-	$(OCB) src/unstaged/asn_unstaged.cmx
-	$(OCB) src/staged/asn_staged_core.cmx
-	$(OCB) src/staged/asn_staged_prim.cmx
-	$(OCB) src/staged/asn_staged_reader.cmx
-	$(OCB) src/staged/asn_staged.cmx
-	$(OCB) src/asn.cmx
-	$(OCB) src/asn.cmxa
+	$(OCB) asn.cma asn.cmxa
 
-test-native:
+test-native: lib
 	$(OCB) tests/test.native
 	$(OCB) tests/x509.native
+
+stager: lib
+	$(OCB) benchmarks/x509/stager.native
+	./stager.native
+
+benchmark: stager
+	$(OCB) benchmarks/x509/x509_benchmark.native
+	./x509_benchmark.native
+
+decode: lib
+	$(OCB) benchmarks/x509/decode.native
+	./decode.native

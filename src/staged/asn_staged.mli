@@ -14,3 +14,5 @@ val encode : 'a codec -> 'a -> bytes
 type error = [ `Parse of string ]
 
 val decode : 'a codec -> bytes -> ('a * bytes, error) result
+
+val stage_decoder : 'a codec -> string -> unit

@@ -252,24 +252,26 @@ let x s =
       | exception End_of_file -> Buffer.contents buf in 
   go (Buffer.create 17) (Scanf.Scanning.from_string s)
 
+let decoder_unstaged = Asn.Unstaged.decode cert_ber_unstaged
+
 let unstaged_accepts ex () =
   let decoder_unstaged = Asn.Unstaged.decode cert_ber_unstaged in 
   match decoder_unstaged (Bytes.of_string (x ex)) with 
     | Ok (_, tl) -> Alcotest.(check bytes) "No remainder" Bytes.empty tl
     | Error _    -> Alcotest.fail "Remainder present"
 
-let staged_accepts ex () =
-  let decoder_unstaged = Asn.Staged.decode cert_ber_staged in 
-  match decoder_unstaged (Bytes.of_string (x ex)) with 
+(*let staged_accepts ex () =
+  let decoder_staged = Asn.Staged.decode cert_ber_staged in 
+  match decoder_staged (Bytes.of_string (x ex)) with 
     | Ok (_, tl) -> Alcotest.(check bytes) "No remainder" Bytes.empty tl
-    | Error _    -> Alcotest.fail "Remainder present"
+    | Error _    -> Alcotest.fail "Remainder present"*)
 
-let () =
+(*let () =
   Alcotest.run "Accepts x509" [
     ("Unstaged Decoder", 
     List.mapi (fun i a -> Alcotest.test_case "Testing Example" `Quick (unstaged_accepts a)) examples
-    );
+    )(*;
     ("Staged Decoder", 
     List.mapi (fun i a -> Alcotest.test_case "Testing Example" `Quick (staged_accepts a)) examples
-    )
-  ]
+    )*)
+  ]*)

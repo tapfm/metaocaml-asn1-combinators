@@ -32,7 +32,7 @@ module type Prim_s = sig
   include Prim
   
   (* Not sure if I like the name for this -- but it is consistent with Bytes.concat *)
-  val concat : t list -> t
+  val concat : (t list -> t) code
   val length : t      -> int
 
 end
@@ -154,7 +154,7 @@ module Bits : Prim_s with type t = bool array = struct
     let size = Bytes.length bbs in
     (size + 1, fun off bs -> Bytes.set_uint8 bs off unused; (Bytes.blit bbs 0 bs (off + 1) size))
   
-  let concat = Array.concat
+  let concat = .<Array.concat>.
 
   let length arr = Array.length arr
 end
@@ -169,7 +169,7 @@ module Octets : Prim_s with type t = bytes = struct
     let len = Bytes.length os in
     (len, fun off bs -> Bytes.blit os 0 bs off len)
 
-  let concat = Bytes.(concat empty)
+  let concat = .<Bytes.(concat empty)>.
 
   let length = Bytes.length
 end
@@ -193,7 +193,7 @@ module Real : Prim with type t = float = struct
   
   type t = float
 
-  let decode_binary = .< fun bs ->
+  let decode_binary = fun bs -> 
     let b0   = Bytes.get_uint8 bs 0 in
     let sign = if (b0 land 0x40) = 0x40 then Float.minus_one else Float.one in 
     let base = (match (b0 land 0x30) with
@@ -218,7 +218,6 @@ module Real : Prim with type t = float = struct
                                 | _    -> assert false) in
     let mant = Int64.to_float (read_n_bytes (1 + expn_length) bs 0L ((Bytes.length bs) - (expn_length + 1))) in
     (sign *. mant *. fact) *. (Float.pow base expn)
-  >.
 
 
   let of_bytes = .<fun bs ->
@@ -227,7 +226,7 @@ module Real : Prim with type t = float = struct
     else 
       let b0 = Bytes.get_uint8 bs 0 in 
       match (b0 land 0x80) with 
-      | 0x80 -> (*Binary encoding*) .~(decode_binary) bs
+      | 0x80 -> (*Binary encoding*) 0. (*.~(decode_binary) bs*)
       | 0x00 -> ( match b0 land 0x40 with
         | 0x40 -> (*"Special Real value"*)
                   (match b0 with 
@@ -283,7 +282,7 @@ module Gen_string : Prim_s with type t = string = struct
 
   let to_writer s = let n = String.length s in (n, fun off bs -> Bytes.blit_string s 0 bs off n)
 
-  let concat = String.concat ""
+  let concat = .<String.concat "">.
 
   let length = String.length
 end

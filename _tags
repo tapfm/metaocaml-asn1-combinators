@@ -1,6 +1,9 @@
-"src"          : include
-"src/unstaged" : include
-"src/staged"   : include
-"tests"        : include
+"src"                  : include
+"src/unstaged"         : include
+"src/staged"           : include
+"tests"                : include
+"benchmarks/x509"      : include
+"benchmarks/x509/data" : include
+"tmp"                  : include
 
-true : package(alcotest), package(qcheck), package(qcheck-alcotest), package(zarith)
+true : package(alcotest), package(qcheck), package(qcheck-alcotest), package(benchmark), package(zarith)
