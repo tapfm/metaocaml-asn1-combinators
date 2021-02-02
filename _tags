@@ -1,6 +1,7 @@
 "src"                  : include
 "src/unstaged"         : include
-"src/staged"           : include
+"src/staged_old"       : include
+"src/staged0"          : include
 "tests"                : include
 "benchmarks/x509"      : include
 "benchmarks/x509/data" : include

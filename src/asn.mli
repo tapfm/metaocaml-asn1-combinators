@@ -132,7 +132,28 @@ module Unstaged : sig
   val decode : 'a codec -> bytes -> ('a * bytes, error) result
 end
 
-module Staged : sig
+module Staged_old : sig
+  type encoding
+
+  val ber : encoding
+
+  val der : encoding
+
+  type 'a codec
+
+  val codec : encoding -> 'a t -> 'a codec
+
+  val encode : 'a codec -> 'a -> bytes
+
+  type error = [ `Parse of string ]
+
+  val decode :  'a codec -> bytes -> ('a * bytes, error) result
+
+  val stage_decoder : 'a codec -> string -> unit
+
+end
+
+module Staged0 : sig
   type encoding
 
   val ber : encoding

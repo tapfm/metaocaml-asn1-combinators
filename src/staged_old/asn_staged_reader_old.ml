@@ -1,10 +1,10 @@
-open Asn_staged_core
+open Asn_staged_core_old
 open Asn_core
 
 (* name 'inherited' from asn1-combinators --> should change to something more descriptive e.g. Generic_tag *)
 module G = Generic
 
-module Prim = Asn_staged_prim
+module Prim = Asn_staged_prim_old
 
 
 (* Coding and length [where appropriate] *)
@@ -229,7 +229,7 @@ let stage name cfg asn =
   Codelib.(format_code formatter (close_code decoder_code));
   (*For some reason when printing to a file, format_code is leaving off the last case, so I am manually adding it*)
   Printf.fprintf out_channel " g_581 -> Stdlib.failwith \"Type mismatch parsing constructed\" in\n";
-  Printf.fprintf out_channel "let (g, b) = Asn_staged_reader.Gen.parse Asn_staged_core.Ber bs in\nOk(f g, b)\n";
+  Printf.fprintf out_channel "let (g, b) = Asn_staged_reader_old.Gen.parse Asn_staged_core_old.Ber bs in\nOk(f g, b)\n";
   close_out out_channel
 
 (*This doesn't work, due to issues with where MetaOCaml looks for definitions*)

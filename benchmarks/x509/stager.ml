@@ -1,27 +1,19 @@
-
 let () =
-  let codec = Asn.Staged.codec Asn.Staged.ber Certificate.certificate in 
-  Asn.Staged.stage_decoder codec "tmp/decoder.ml"
-
-
-
-(*
-let () = 
-  let int_codec = Asn_combinators.integer in 
-  let dec_code  = Asn_staged_reader.c_asn int_codec Asn_staged_core.Ber in 
-  let out_chan  = open_out "tmp/decoder.ml" in
-  let decode_ft = Format.formatter_of_out_channel out_chan in 
-  let code_clsd = Codelib.close_code dec_code in 
-  Codelib.format_code decode_ft code_clsd;
-  close_out out_chan
-*)
-
-(*
-let () = 
-  let b = Bytes.create 1 in 
-  Bytes.set_int8 b 0 19;
-  let x = Asn_core.Generic.Prim(Asn_core.Tag.Universal 2, b) in 
-  let z = Staged.decode x in
-  Z.print z;
-  print_newline()
-*)
+  
+  Printf.printf "Starting staging using Staged_old stager...\n";
+  let codec = Asn.Staged_old.codec Asn.Staged_old.ber Certificate.certificate in 
+  Asn.Staged_old.stage_decoder codec "tmp/decoder_staged_old.ml";
+  Printf.printf "Finished staging using Staged_old stager\n\n";
+  
+  
+  Printf.printf "Starting staging using Staged0 stager...\n";
+  let codec = Asn.Staged0.codec Asn.Staged0.ber Certificate.certificate in 
+  Asn.Staged0.stage_decoder codec "tmp/decoder_staged0.ml";
+  Printf.printf "Finished staging using Staged0 stager\n\n"
+  
+  (*
+  let open Asn.S in
+  let protocol = printable_string  in
+  let codec = Asn.Staged0.codec Asn.Staged0.ber protocol in 
+  Asn.Staged0.stage_decoder codec "tmp/bool_staged0.ml"
+  *)

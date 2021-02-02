@@ -1,6 +1,7 @@
 S src
 S src/unstaged
-S src/staged
+S src/staged_old
+S src/staged0
 S tests
 S benchmarks
 S benchmarks/x509
@@ -17,7 +18,8 @@ EXT meta
 
 B _build/src
 B _build/src/unstaged
-B _build/src/staged
+B _build/src/staged_old
+B _build/src/staged0
 B _build/tests
 B _build/benchmarks
 B _build/benchmarks/x509

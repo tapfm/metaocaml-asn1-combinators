@@ -22,6 +22,7 @@ test-native: lib
 	$(OCB) tests/x509.native
 
 stager: lib
+	ulimit -s unlimited
 	$(OCB) benchmarks/x509/stager.native
 	./stager.native
 

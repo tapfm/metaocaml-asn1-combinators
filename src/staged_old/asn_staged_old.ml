@@ -1,7 +1,7 @@
 module Core = Asn_core
-module Reader = Asn_staged_reader
-module Writer = Asn_staged_writer
-open Asn_staged_core
+module Reader = Asn_staged_reader_old
+module Writer = Asn_staged_writer_old
+open Asn_staged_core_old
 
 
 type 'a t = 'a Core.asn

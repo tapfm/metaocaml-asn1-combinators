@@ -1,17 +1,10 @@
-open Asn_staged_core
+open Asn_staged0_core
 open Asn_core
 
-module Prim = Asn_staged_prim
+module Prim = Asn_staged0_prim
 
 (* Type for whether the encoded value is primitive or constructed *)
 type mode = Constructed | Primitive
-
-(* A simple operator to combine 2 Writer.t values*)
-let (<+>) : writer -> writer -> writer =
-  fun (len_1, writer_1) (len_2, writer_2) ->
-  let w off bs = 
-    (writer_1 off bs; writer_2 (off + len_1) bs) in
-  (len_1 + len_2, w)
 
 let empty_writer = (0, fun off bs -> ())
 
