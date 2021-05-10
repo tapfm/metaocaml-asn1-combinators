@@ -125,6 +125,12 @@ let teq : tag -> (tag -> bool) code = function
 | Asn_core.Tag.Context_specific x -> .< function | Context_specific y -> x = y | _ -> false>.
 | Asn_core.Tag.Private x          -> .< function | Private y -> x = y | _ -> false>.
 
+(*let teq : tag -> (tag -> bool) code = function
+| Asn_core.Tag.Universal x        -> .<fun t -> t = Universal x >.
+| Asn_core.Tag.Application x      -> .<fun t -> t = Application x >.
+| Asn_core.Tag.Context_specific x -> .<fun t -> t = Context_specific x >.
+| Asn_core.Tag.Private x          -> .<fun t -> t = Private x >.*)
+
 let rec tqs : tag list -> (tag -> bool) code = function 
 | []    -> .<fun _   -> false>.
 | t::ts -> .<fun tag -> if .~(teq t) tag then true else .~(tqs ts) tag>.
@@ -223,13 +229,14 @@ and c_seq : type a. a sequence -> config -> (G.t list -> a) code = fun s cfg->
 let stage name cfg asn = 
   (*Due to metaocaml issues I am having to write the decoder as a special file, which is then decoded later*)
   let decoder_code = c_asn asn cfg in
-  let out_channel  = open_out name in 
+  let out_channel  = open_out name in
   let formatter    = Format.formatter_of_out_channel out_channel in
-  Printf.fprintf out_channel "let decode bs =\n  let f = \n";
+  flush out_channel;
+  Printf.fprintf out_channel "let f = \n";
   Codelib.(format_code formatter (close_code decoder_code));
   (*For some reason when printing to a file, format_code is leaving off the last case, so I am manually adding it*)
-  Printf.fprintf out_channel " g_581 -> Stdlib.failwith \"Type mismatch parsing constructed\" in\n";
-  Printf.fprintf out_channel "let (g, b) = Asn_staged_reader_old.Gen.parse Asn_staged_core_old.Ber bs in\nOk(f g, b)\n";
+  Printf.fprintf out_channel " g_581 -> Stdlib.failwith \"Type mismatch parsing constructed\"\n";
+  Printf.fprintf out_channel "\nlet decode bs =\n  let (g, b) = Asn_staged_reader_old.Gen.parse Asn_staged_core_old.Ber bs in\n  Ok(f g, b)\n";
   close_out out_channel
 
 (*This doesn't work, due to issues with where MetaOCaml looks for definitions*)

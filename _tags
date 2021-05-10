@@ -1,10 +1,18 @@
 "src"                  : include
 "src/unstaged"         : include
 "src/staged_old"       : include
-"src/staged0"          : include
+"src/staged"           : include
 "tests"                : include
+"benchmarks"           : include
 "benchmarks/x509"      : include
 "benchmarks/x509/data" : include
+"benchmarks/kerberos"  : include
+"benchmarks/snmp"      : include
+"benchmarks/ldap"      : include
+"benchmarks/toy"       : include
+"benchmarks/toy/bool"  : include
+"benchmarks/toy/intseq": include
+"benchmarks/toy/hnis"  : include
 "tmp"                  : include
 
 true : package(alcotest), package(qcheck), package(qcheck-alcotest), package(benchmark), package(zarith)

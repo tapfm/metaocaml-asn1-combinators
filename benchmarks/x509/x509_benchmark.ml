@@ -1,62 +1,55 @@
+let bench_cert bs name = 
+  let codec_unstaged = Asn.Unstaged.codec Asn.Unstaged.ber Certificate.certificate in
+  let decoder_unstaged = Asn.Unstaged.decode codec_unstaged in 
+  let decoder_staged   = Decoder_staged.decode in 
+  let decoder_old      = Decoder_staged_old.decode in 
+  let res = Benchmark.throughputN ~repeat:3 5 [
+    (name ^ " Unstaged",   decoder_unstaged, bs);
+    (name ^ " Staged old", decoder_old,      bs);
+    (name ^ " Staged",     decoder_staged,   bs)
+  ] in 
+  print_newline();
+  Benchmark.tabulate res;
+  Printf.printf "\nTesting Staged section only\n";
+  let (g, b) = Asn_staged_reader.Gen.parse Asn_staged_core.Ber bs in 
+  let res_staged = Benchmark.throughputN ~repeat:3 5 [
+    ("Unstaged",   Asn_unstaged_reader.c_asn Cert2.certificate Asn_unstaged_reader.Ber, g);
+    ("Staged",     Decoder_staged.f,     g);
+    ("Staged old", Decoder_staged_old.f, g)
+  ] in 
+  print_newline();
+  Benchmark.tabulate res_staged
+
+
+
 let () = 
-  let codec = Asn.Unstaged.codec Asn.Unstaged.ber Certificate.certificate in
-  let decoder = Asn.Unstaged.decode codec in 
-  let dir   = "benchmarks/x509/data/" in
-  let files = Array.to_seq(Sys.readdir dir) in 
-  let open Seq in
-  let benchmarks = 
-  map (fun (s,n) -> ("Unstaged " ^ n, decoder, (Bytes.of_string s)) ) @@
-  map (fun (filename, n) -> 
+  (*let data0 = (
+    let filename = "benchmarks/x509/data/test0.dat" in
     let ic   = open_in filename in
     let data = really_input_string ic (in_channel_length ic) in 
     close_in ic;
-    (data,n)
-  ) @@
-  map (fun filename -> (dir ^ filename, filename)) @@
-  filter (fun name -> Filename.check_suffix name ".dat") @@ 
-  files in 
-  let res = Benchmark.latencyN ~repeat:3 1000000L (List.of_seq benchmarks) in 
-  print_newline();
-  Benchmark.tabulate res
-
-(*Would like to directly compare them file to file, but it complains since the type signatures are slighty different*)
-
-let () =
-  let dir   = "benchmarks/x509/data/" in
-  let files = Array.to_seq(Sys.readdir dir) in 
-  let open Seq in
-  let benchmarks = 
-  map (fun (b,n) -> ("Staged " ^ n, Decoder_staged_old.decode, b)) @@
-  map (fun (s,n) -> (Bytes.of_string s, n)) @@
-  map (fun (filename,n) -> 
+    Bytes.of_string data
+  ) in 
+  let data1 = (
+    let filename = "benchmarks/x509/data/test0.dat" in
     let ic   = open_in filename in
     let data = really_input_string ic (in_channel_length ic) in 
     close_in ic;
-    (data,n)
-  ) @@
-  map (fun filename -> (dir ^ filename, filename)) @@
-  filter (fun name -> Filename.check_suffix name ".dat") @@ 
-  files in 
-  let res = Benchmark.latencyN ~repeat:3 1000000L (List.of_seq benchmarks) in 
-  print_newline();
-  Benchmark.tabulate res
-
-let () =
-  let dir   = "benchmarks/x509/data/" in
-  let files = Array.to_seq(Sys.readdir dir) in 
-  let open Seq in
-  let benchmarks = 
-  map (fun (b,n) -> ("Staged " ^ n, Decoder_staged0.decode, b)) @@
-  map (fun (s,n) -> (Bytes.of_string s, n)) @@
-  map (fun (filename,n) -> 
+    Bytes.of_string data
+  ) in 
+  let data2 = (
+    let filename = "benchmarks/x509/data/test0.dat" in
     let ic   = open_in filename in
     let data = really_input_string ic (in_channel_length ic) in 
     close_in ic;
-    (data,n)
-  ) @@
-  map (fun filename -> (dir ^ filename, filename)) @@
-  filter (fun name -> Filename.check_suffix name ".dat") @@ 
-  files in 
-  let res = Benchmark.latencyN ~repeat:3 1000000L (List.of_seq benchmarks) in 
-  print_newline();
-  Benchmark.tabulate res
+    Bytes.of_string data
+  ) in 
+  bench_cert data0 "test0.dat";
+  bench_cert data1 "test1.dat";
+  bench_cert data2 "test2.dat";*)
+  let data = Asn.random Certificate.certificate in 
+  let codec_unstaged = Asn.Unstaged.codec Asn.Unstaged.ber Certificate.certificate in 
+  let encoder = Asn.Unstaged.encode codec_unstaged in
+  let encoded = encoder data in 
+  bench_cert encoded "Random data"
+  

@@ -54,8 +54,12 @@ module Header = struct
       if tag_num < 0x1f then
         (1, fun off bs -> Bytes.set_uint8 bs off (class_code lor constructed lor tag_num))
       else
-        (* TODO: tag_num must extend into further octects *)
-        assert false
+        let cons x = function | [] -> [x] | xs -> (x lor 0x80)::xs in 
+        let rec loop acc = function | 0 -> acc | n -> loop (cons (n land 0x7F) acc) (n lsr 7) in 
+        let tag_bytes = loop [] tag_num in 
+        let w off bs = List.iteri (fun i -> Bytes.set_uint8 bs (off + i)) tag_bytes in 
+        (1, fun off bs -> Bytes.set_uint8 bs off (class_code lor constructed lor 0x1f)) <+>
+        (List.length tag_bytes, w)
     in
     let length_bytes = 
       (* Currently doesn't actually support encoding for indefinite length values --> could be solve with a boolean? *)
@@ -95,7 +99,10 @@ let rec encode : type a. config -> tag option -> a -> a asn -> writer
                                             empty_writer
                                             (map (fun e -> encode conf None e asn) a))
   | Set _               -> failwith "Set not implemented"
-  | Set_of _            -> failwith "Set_of not implemented"
+  | Set_of asn            -> e_constructed (tag @? set_tag) @@
+                            List.(fold_left (fun w1 w2 -> w1 <+> w2) 
+                                            empty_writer
+                                            (map (fun e -> encode conf None e asn) a))
   | Choice (asn1, asn2) -> (match a with
                             | L a' -> encode conf tag a' asn1 
                             | R b' -> encode conf tag b' asn2)

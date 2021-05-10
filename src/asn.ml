@@ -17,4 +17,6 @@ module Unstaged   = Asn_unstaged
 
 module Staged_old = Asn_staged_old
 
-module Staged0 = Asn_staged0
+module Staged = Asn_staged
+
+let random = Asn_random.r_asn

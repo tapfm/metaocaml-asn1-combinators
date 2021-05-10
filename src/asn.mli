@@ -87,7 +87,7 @@ module S : sig
 
   val real         : float t
 
-  val oid          : oid t
+  val oid          : Asn_oid.t t
 
 
   (*Types for time values -- currently just treated as string*)
@@ -113,13 +113,14 @@ module S : sig
 
 end
 
+val random : ?full:bool -> 'a t -> 'a
+
 module Unstaged : sig
   type encoding
 
   val ber : encoding
 
   val der : encoding
-
 
   type 'a codec
 
@@ -143,8 +144,6 @@ module Staged_old : sig
 
   val codec : encoding -> 'a t -> 'a codec
 
-  val encode : 'a codec -> 'a -> bytes
-
   type error = [ `Parse of string ]
 
   val decode :  'a codec -> bytes -> ('a * bytes, error) result
@@ -153,7 +152,7 @@ module Staged_old : sig
 
 end
 
-module Staged0 : sig
+module Staged : sig
   type encoding
 
   val ber : encoding
@@ -163,8 +162,6 @@ module Staged0 : sig
   type 'a codec
 
   val codec : encoding -> 'a t -> 'a codec
-
-  val encode : 'a codec -> 'a -> bytes
 
   type error = [ `Parse of string ]
 

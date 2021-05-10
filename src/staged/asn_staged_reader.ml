@@ -1,10 +1,10 @@
-open Asn_staged0_core
+open Asn_staged_core
 open Asn_core
 
 (* name 'inherited' from asn1-combinators --> should change to something more descriptive e.g. Generic_tag *)
 module G = Generic
 
-module Prim = Asn_staged0_prim
+module Prim = Asn_staged_prim
 
 
 (* Coding and length [where appropriate] *)
@@ -16,8 +16,6 @@ type coding =
 (* The `Header' covers the identifier and length octets *)
 (* Still need to work out a good procedure for indefinite length encoding -- currently unimplemented*)
 module Header = struct
-
-
   let long_tag bs = 
     let rec go acc = function 
       | 8 -> failwith "Parse error: length of tag in excess of 8 bytes"
@@ -119,11 +117,19 @@ end
 
 let (@?) x_opt y = match x_opt with Some x -> x | None -> y
 
+
+
 let teq : tag -> tag code -> bool code = fun t1 t2 -> match t1 with
-| Asn_core.Tag.Universal x        -> .< match .~t2 with | Universal y -> x = y | _ -> false>.
-| Asn_core.Tag.Application x      -> .< match .~t2 with | Application y -> x = y | _ -> false>.
-| Asn_core.Tag.Context_specific x -> .< match .~t2 with | Context_specific y -> x = y | _ -> false>.
-| Asn_core.Tag.Private x          -> .< match .~t2 with | Private y -> x = y | _ -> false>.
+| Asn_core.Tag.Universal x        -> .< match .~t2 with | Universal y -> x = y | _ -> false >.
+| Asn_core.Tag.Application x      -> .< match .~t2 with | Application y -> x = y | _ -> false >.
+| Asn_core.Tag.Context_specific x -> .< match .~t2 with | Context_specific y -> x = y | _ -> false >.
+| Asn_core.Tag.Private x          -> .< match .~t2 with | Private y -> x = y | _ -> false >.
+
+(*let teq : tag -> tag code -> bool code = fun t1 t2 -> match t1 with
+| Asn_core.Tag.Universal x        -> .< .~t2 = Universal x >.
+| Asn_core.Tag.Application x      -> .< .~t2 = Application x >.
+| Asn_core.Tag.Context_specific x -> .< .~t2 = Context_specific x >.
+| Asn_core.Tag.Private x          -> .< .~t2 = Private x >.*)
 
 let tqs : tag list -> tag code -> bool code = fun t1 t2-> 
   let rec expand = function
@@ -225,7 +231,7 @@ and c_seq : type a. a sequence -> config -> G.t list code -> a code = fun s cfg-
       let p = c_asn a cfg in 
       fun gsc -> .<match .~gsc with 
         | g::gs -> (.~(p .<g>.), gs)
-        | []    -> failwith ("Parse error: Sequence missing trailing " ^ l)>.
+        | []    -> .~(let msg = "Parse error: Sequence missing trailing " ^ l in .<failwith msg>.)>.
     | Optional (_, a) ->
       let (p, accepts) = (c_asn a cfg, peek a) in 
       fun gsc ->  .<
@@ -243,12 +249,13 @@ let stage name cfg asn =
   let decoder_code = .<fun gs -> .~(c_asn asn cfg .<gs>.)>. in
   let out_channel  = open_out name in 
   let formatter    = Format.formatter_of_out_channel out_channel in
-  Printf.fprintf out_channel "let decode bs =\n  let f = \n";
+  Printf.fprintf out_channel "let f = \n";
   Codelib.(format_code formatter (close_code decoder_code));
   flush out_channel;
   (*For some reason when printing to a file, format_code is leaving off the last case, so I am manually adding it*)
   Printf.fprintf out_channel " g_581 -> Stdlib.failwith \"Type mismatch parsing constructed\"";
-  Printf.fprintf out_channel " in\nlet (g, b) = Asn_staged0_reader.Gen.parse Asn_staged0_core.Ber bs in\nOk(f g, b)\n";
+  Printf.fprintf out_channel "\nlet decode bs =\n  let (g, b) = Asn_staged_reader.Gen.parse Asn_staged_core.Ber bs in\n  Ok(f g, b)\n";
+  flush out_channel;
   close_out out_channel
   (*Codelib.(format_code Format.std_formatter (close_code decoder_code));
   Format.printf "\n"*)

@@ -1,11 +1,18 @@
 S src
 S src/unstaged
 S src/staged_old
-S src/staged0
+S src/staged
 S tests
 S benchmarks
 S benchmarks/x509
 S benchmarks/x509/data
+S benchmarks/kerberos
+S benchmarks/ldap
+S benchmarks/snmp
+S benchmarks/toy
+S benchmarks/toy/bool
+S benchmarks/toy/intseq
+S benchmarks/toy/hnis
 S tmp
 
 PKG alcotest
@@ -19,9 +26,16 @@ EXT meta
 B _build/src
 B _build/src/unstaged
 B _build/src/staged_old
-B _build/src/staged0
+B _build/src/staged
 B _build/tests
 B _build/benchmarks
 B _build/benchmarks/x509
 B _build/benchmarks/x509/data
+B _build/benchmarks/kerberos
+B _build/benchmarks/ldap
+B _build/benchmarks/snmp
+B _build/benchmarks/toy
+B _build/benchmarks/toy/bool
+B _build/benchmarks/toy/intseq
+B _build/benchmarks/toy/hnis
 B _build/tmp

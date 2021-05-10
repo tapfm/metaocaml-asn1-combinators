@@ -1,5 +1,5 @@
 (*Adapted from https://raw.githubusercontent.com/mirleft/ocaml-asn1-combinators/master/tests/x509.ml*)
-open Asn.S
+open Asn_combinators  
 module OID = Asn_oid
 
 type tBSCertificate = {
